@@ -173,6 +173,8 @@ public:
     VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit(
             const std::string& _address, std::uint16_t _port) const;
     VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit_local() const;
+
+    VSOMEIP_EXPORT boost::asio::ip::address_v6 get_address_with_interface(const boost::asio::ip::address_v6 &ip) const;
 private:
     void read_data(const std::set<std::string> &_input,
             std::vector<element> &_elements,

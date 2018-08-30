@@ -3232,5 +3232,13 @@ std::shared_ptr<debounce> configuration_impl::get_debounce(
     return nullptr;
 }
 
+boost::asio::ip::address_v6 configuration_impl::get_address_with_interface(const boost::asio::ip::address_v6 &ip) const {
+    std::string address = ip.to_string();
+    if (address.find("virbr0") == std::string::npos) {
+        address = address + "%virbr0";
+    }
+    return boost::asio::ip::address_v6::from_string(address);
+}
+
 }  // namespace config
 }  // namespace vsomeip
