@@ -170,6 +170,7 @@ public:
     virtual endpoint_queue_limit_t get_endpoint_queue_limit(
             const std::string& _address, std::uint16_t _port) const = 0;
     virtual endpoint_queue_limit_t get_endpoint_queue_limit_local() const = 0;
+    virtual std::string get_address_with_interface(const std::string &ip) const = 0;
     virtual boost::asio::ip::address_v6 get_address_with_interface(const boost::asio::ip::address_v6 &ip) const = 0;
 };
 

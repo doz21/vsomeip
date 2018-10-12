@@ -9,6 +9,7 @@
 #include <set>
 #include <sstream>
 #include <limits>
+#include <ifaddrs.h>
 
 #define WIN32_LEAN_AND_MEAN
 
@@ -152,6 +153,8 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     log_status_interval_ = _other.log_status_interval_;
 
     debounces_ = _other.debounces_;
+
+    interface_name_ = interface_name_;
 }
 
 configuration_impl::~configuration_impl() {
@@ -733,7 +736,10 @@ void configuration_impl::load_unicast_address(const element &_element) {
             VSOMEIP_WARNING << "Multiple definitions for unicast."
                     "Ignoring definition from " << _element.name_;
         } else {
-            unicast_ = unicast_.from_string(its_value);
+            if (interface_name_.empty()) {
+                set_interface_name(its_value);
+            }
+            unicast_ = unicast_.from_string(get_address_with_interface(its_value));
             is_configured_[ET_UNICAST] = true;
         }
     } catch (...) {
@@ -815,7 +821,7 @@ void configuration_impl::load_service_discovery(
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.multicast."
                             " Ignoring definition from " << _element.name_;
                 } else {
-                    sd_multicast_ = its_value;
+                    sd_multicast_ = get_address_with_interface(its_value);
                     is_configured_[ET_SERVICE_DISCOVERY_MULTICAST] = true;
                 }
             } else if (its_key == "port") {
@@ -3232,12 +3238,50 @@ std::shared_ptr<debounce> configuration_impl::get_debounce(
     return nullptr;
 }
 
+std::string configuration_impl::get_address_with_interface(const std::string &ip) const {
+    if (boost::asio::ip::address::from_string(ip).is_v6() && ip.find ("%") == std::string::npos) {
+        return ip + "%" + interface_name_;
+    }
+    return ip;
+}
+
 boost::asio::ip::address_v6 configuration_impl::get_address_with_interface(const boost::asio::ip::address_v6 &ip) const {
     std::string address = ip.to_string();
-    if (address.find("virbr0") == std::string::npos) {
-        address = address + "%virbr0";
+    if (address.find(interface_name_) == std::string::npos) {
+        address = address + "%" + interface_name_;
     }
     return boost::asio::ip::address_v6::from_string(address);
+}
+
+void configuration_impl::set_interface_name(const std::string &ip) {
+    struct ifaddrs *if_addr_struct = NULL;
+    getifaddrs(&if_addr_struct);
+    std::string search_ip = ip;
+    if (search_ip.find("%") != std::string::npos) {
+        search_ip = search_ip.substr(0, search_ip.find("%"));
+    }
+    for (struct ifaddrs *ifa = if_addr_struct; ifa != NULL; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr) {
+            continue;
+        }
+        if (ifa->ifa_addr->sa_family == AF_INET) { // check it is IP4
+            // is a valid IP4 Address
+            void *tmp_addr_ptr = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+            char address_buffer[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, tmp_addr_ptr, address_buffer, INET_ADDRSTRLEN);
+        } else if (ifa->ifa_addr->sa_family == AF_INET6) { // check it is IP6
+            // is a valid IP6 Address
+            void *tmp_addr_ptr=&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
+            char address_buffer[INET6_ADDRSTRLEN];
+            inet_ntop(AF_INET6, tmp_addr_ptr, address_buffer, INET6_ADDRSTRLEN);
+            if (search_ip == std::string(address_buffer)){
+                VSOMEIP_INFO <<  "IP Address " << address_buffer << " is on interface " << ifa->ifa_name;
+                interface_name_ = ifa->ifa_name;
+                break;
+            }
+        }
+    }
+    if (if_addr_struct != NULL) freeifaddrs(if_addr_struct);
 }
 
 }  // namespace config
