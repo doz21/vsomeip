@@ -8,7 +8,7 @@
 
 #include <memory>
 
-#if WIN32
+#ifdef _WIN32
     #if VSOMEIP_DLL_COMPILATION_PLUGIN
         #define VSOMEIP_IMPORT_EXPORT_PLUGIN __declspec(dllexport)
     #else

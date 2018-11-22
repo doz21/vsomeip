@@ -2,8 +2,8 @@
 // basic_datagram_socket_ext.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2015 Christopher M. Kohlhoff (chris at kohlhoff dot com)
-// Copyright (C) 2016-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (c) 2003-2017 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (C) 2016-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_boost or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -20,12 +20,15 @@
 
 #include <boost/asio/detail/config.hpp>
 #include <cstddef>
-#include <boost/asio/basic_socket.hpp>
-#include <boost/asio/datagram_socket_service_ext.hpp>
+#include <boost/asio/basic_socket_ext.hpp>
 #include <boost/asio/detail/handler_type_requirements_ext.hpp>
 #include <boost/asio/detail/throw_error.hpp>
 #include <boost/asio/detail/type_traits.hpp>
 #include <boost/asio/error.hpp>
+
+#if defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
+#include <boost/asio/detail/datagram_socket_service_ext.hpp>
+#endif // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
 
 #include <boost/asio/detail/push_options.hpp>
 
@@ -41,18 +44,19 @@ namespace asio {
  * @e Distinct @e objects: Safe.@n
  * @e Shared @e objects: Unsafe.
  */
-template <typename Protocol,
-    typename DatagramSocketService = datagram_socket_service_ext<Protocol> >
+template <typename Protocol
+    BOOST_ASIO_SVC_TPARAM_DEF1(= datagram_socket_service_ext<Protocol>)>
 class basic_datagram_socket_ext
-  : public basic_socket<Protocol, DatagramSocketService>
+  : public basic_socket_ext<Protocol BOOST_ASIO_SVC_TARG>
 {
 public:
-  /// (Deprecated: Use native_handle_type.) The native representation of a
-  /// socket.
-  typedef typename DatagramSocketService::native_handle_type native_type;
-
   /// The native representation of a socket.
-  typedef typename DatagramSocketService::native_handle_type native_handle_type;
+#if defined(GENERATING_DOCUMENTATION)
+  typedef implementation_defined native_handle_type;
+#else
+  typedef typename basic_socket_ext<
+      Protocol BOOST_ASIO_SVC_TARG>::native_handle_type native_handle_type;
+#endif
 
   /// The protocol type.
   typedef Protocol protocol_type;
@@ -65,12 +69,12 @@ public:
    * This constructor creates a datagram socket without opening it. The open()
    * function must be called before data can be sent or received on the socket.
    *
-   * @param io_service The io_service object that the datagram socket will use
+   * @param io_context The io_service object that the datagram socket will use
    * to dispatch handlers for any asynchronous operations performed on the
    * socket.
    */
-  explicit basic_datagram_socket_ext(boost::asio::io_service& io_service)
-    : basic_socket<Protocol, DatagramSocketService>(io_service)
+  explicit basic_datagram_socket_ext(boost::asio::io_context& io_context)
+    : basic_socket_ext<Protocol BOOST_ASIO_SVC_TARG>(io_context)
   {
   }
 
@@ -78,7 +82,7 @@ public:
   /**
    * This constructor creates and opens a datagram socket.
    *
-   * @param io_service The io_service object that the datagram socket will use
+   * @param io_context The io_context object that the datagram socket will use
    * to dispatch handlers for any asynchronous operations performed on the
    * socket.
    *
@@ -86,9 +90,9 @@ public:
    *
    * @throws boost::system::system_error Thrown on failure.
    */
-  basic_datagram_socket_ext(boost::asio::io_service& io_service,
+  basic_datagram_socket_ext(boost::asio::io_context& io_context,
       const protocol_type& protocol)
-    : basic_socket<Protocol, DatagramSocketService>(io_service, protocol)
+    : basic_socket_ext<Protocol BOOST_ASIO_SVC_TARG>(io_context, protocol)
   {
   }
 
@@ -99,7 +103,7 @@ public:
    * to the specified endpoint on the local machine. The protocol used is the
    * protocol associated with the given endpoint.
    *
-   * @param io_service The io_service object that the datagram socket will use
+   * @param io_context The io_context object that the datagram socket will use
    * to dispatch handlers for any asynchronous operations performed on the
    * socket.
    *
@@ -108,9 +112,9 @@ public:
    *
    * @throws boost::system::system_error Thrown on failure.
    */
-  basic_datagram_socket_ext(boost::asio::io_service& io_service,
+  basic_datagram_socket_ext(boost::asio::io_context& io_context,
       const endpoint_type& endpoint)
-    : basic_socket<Protocol, DatagramSocketService>(io_service, endpoint)
+    : basic_socket_ext<Protocol BOOST_ASIO_SVC_TARG>(io_context, endpoint)
   {
   }
 
@@ -119,7 +123,7 @@ public:
    * This constructor creates a datagram socket object to hold an existing
    * native socket.
    *
-   * @param io_service The io_service object that the datagram socket will use
+   * @param io_context The io_context object that the datagram socket will use
    * to dispatch handlers for any asynchronous operations performed on the
    * socket.
    *
@@ -129,10 +133,10 @@ public:
    *
    * @throws boost::system::system_error Thrown on failure.
    */
-  basic_datagram_socket_ext(boost::asio::io_service& io_service,
+  basic_datagram_socket_ext(boost::asio::io_context& io_context,
       const protocol_type& protocol, const native_handle_type& native_socket)
-    : basic_socket<Protocol, DatagramSocketService>(
-        io_service, protocol, native_socket)
+    : basic_socket_ext<Protocol BOOST_ASIO_SVC_TARG>(
+    		io_context, protocol, native_socket)
   {
   }
 
@@ -145,11 +149,10 @@ public:
    * will occur.
    *
    * @note Following the move, the moved-from object is in the same state as if
-   * constructed using the @c basic_datagram_socket(io_service&) constructor.
+   * constructed using the @c basic_datagram_socket(io_context&) constructor.
    */
   basic_datagram_socket_ext(basic_datagram_socket_ext&& other)
-    : basic_socket<Protocol, DatagramSocketService>(
-        BOOST_ASIO_MOVE_CAST(basic_datagram_socket_ext)(other))
+    : basic_socket_ext<Protocol BOOST_ASIO_SVC_TARG>(std::move(other))
   {
   }
 
@@ -162,12 +165,11 @@ public:
    * will occur.
    *
    * @note Following the move, the moved-from object is in the same state as if
-   * constructed using the @c basic_datagram_socket(io_service&) constructor.
+   * constructed using the @c basic_datagram_socket(io_context&) constructor.
    */
   basic_datagram_socket_ext& operator=(basic_datagram_socket_ext&& other)
   {
-    basic_socket<Protocol, DatagramSocketService>::operator=(
-        BOOST_ASIO_MOVE_CAST(basic_datagram_socket_ext)(other));
+	basic_socket_ext<Protocol BOOST_ASIO_SVC_TARG>::operator=(std::move(other));
     return *this;
   }
 
@@ -180,15 +182,13 @@ public:
    * will occur.
    *
    * @note Following the move, the moved-from object is in the same state as if
-   * constructed using the @c basic_datagram_socket(io_service&) constructor.
+   * constructed using the @c basic_datagram_socket(io_context&) constructor.
    */
-  template <typename Protocol1, typename DatagramSocketService1>
+  template <typename Protocol1 BOOST_ASIO_SVC_TPARAM1>
   basic_datagram_socket_ext(
-      basic_datagram_socket_ext<Protocol1, DatagramSocketService1>&& other,
+      basic_datagram_socket_ext<Protocol1 BOOST_ASIO_SVC_TARG1>&& other,
       typename enable_if<is_convertible<Protocol1, Protocol>::value>::type* = 0)
-    : basic_socket<Protocol, DatagramSocketService>(
-        BOOST_ASIO_MOVE_CAST2(basic_datagram_socket_ext<
-          Protocol1, DatagramSocketService1>)(other))
+    : basic_socket_ext<Protocol BOOST_ASIO_SVC_TARG>(std::move(other))
   {
   }
 
@@ -202,19 +202,26 @@ public:
    * will occur.
    *
    * @note Following the move, the moved-from object is in the same state as if
-   * constructed using the @c basic_datagram_socket(io_service&) constructor.
+   * constructed using the @c basic_datagram_socket(io_context&) constructor.
    */
-  template <typename Protocol1, typename DatagramSocketService1>
+  template <typename Protocol1 BOOST_ASIO_SVC_TPARAM1>
   typename enable_if<is_convertible<Protocol1, Protocol>::value,
       basic_datagram_socket_ext>::type& operator=(
-        basic_datagram_socket_ext<Protocol1, DatagramSocketService1>&& other)
+        basic_datagram_socket_ext<Protocol1 BOOST_ASIO_SVC_TARG1>&& other)
   {
-    basic_socket<Protocol, DatagramSocketService>::operator=(
-        BOOST_ASIO_MOVE_CAST2(basic_datagram_socket_ext<
-          Protocol1, DatagramSocketService1>)(other));
+	basic_socket_ext<Protocol BOOST_ASIO_SVC_TARG>::operator=(std::move(other));
     return *this;
   }
 #endif // defined(BOOST_ASIO_HAS_MOVE) || defined(GENERATING_DOCUMENTATION)
+
+  /// Destroys the socket
+  /**
+   * This function destroys the socket, cancelling any outstanding asynchronous
+   * operations associated with the socket as if by calling @c cancel.
+   */
+  ~basic_datagram_socket_ext()
+  {
+  }
 
   /// Send some data on a connected socket.
   /**
@@ -321,7 +328,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * boost::asio::io_service::post().
+   * boost::asio::io_context::post().
    *
    * @note The async_send operation can only be used with a connected socket.
    * Use the async_send_to function to send data on an unconnected datagram
@@ -346,8 +353,18 @@ public:
     // not meet the documented type requirements for a WriteHandler.
     BOOST_ASIO_WRITE_HANDLER_CHECK(WriteHandler, handler) type_check;
 
+#if defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
     return this->get_service().async_send(this->get_implementation(),
         buffers, 0, BOOST_ASIO_MOVE_CAST(WriteHandler)(handler));
+#else // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
+    async_completion<WriteHandler,
+	  void (boost::system::error_code, std::size_t)> init(handler);
+
+      this->get_service().async_send(this->get_implementation(),
+        buffers, 0, init.completion_handler);
+
+      return init.result.get();
+#endif // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
   }
 
   /// Start an asynchronous send on a connected socket.
@@ -372,7 +389,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * boost::asio::io_service::post().
+   * boost::asio::io_context::post().
    *
    * @note The async_send operation can only be used with a connected socket.
    * Use the async_send_to function to send data on an unconnected datagram
@@ -389,8 +406,18 @@ public:
     // not meet the documented type requirements for a WriteHandler.
     BOOST_ASIO_WRITE_HANDLER_CHECK(WriteHandler, handler) type_check;
 
+#if defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
     return this->get_service().async_send(this->get_implementation(),
         buffers, flags, BOOST_ASIO_MOVE_CAST(WriteHandler)(handler));
+#else // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
+    async_completion<WriteHandler,
+	  void (boost::system::error_code, std::size_t)> init(handler);
+
+    this->get_service().async_send(this->get_implementation(),
+      buffers, flags, init.completion_handler);
+
+    return init.result.get();
+#endif // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
   }
 
   /// Send a datagram to the specified endpoint.
@@ -504,7 +531,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * boost::asio::io_service::post().
+   * boost::asio::io_context::post().
    *
    * @par Example
    * To send a single data buffer use the @ref buffer function as follows:
@@ -529,9 +556,20 @@ public:
     // not meet the documented type requirements for a WriteHandler.
     BOOST_ASIO_WRITE_HANDLER_CHECK(WriteHandler, handler) type_check;
 
+#if defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
     return this->get_service().async_send_to(
         this->get_implementation(), buffers, destination, 0,
         BOOST_ASIO_MOVE_CAST(WriteHandler)(handler));
+#else // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
+    async_completion<WriteHandler,
+      void (boost::system::error_code, std::size_t)> init(handler);
+
+    this->get_service().async_send_to(
+        this->get_implementation(), buffers, destination, 0,
+        init.completion_handler);
+
+    return init.result.get();
+#endif // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
   }
 
   /// Start an asynchronous send.
@@ -559,7 +597,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * boost::asio::io_service::post().
+   * boost::asio::io_context::post().
    */
   template <typename ConstBufferSequence, typename WriteHandler>
   BOOST_ASIO_INITFN_RESULT_TYPE(WriteHandler,
@@ -572,9 +610,20 @@ public:
     // not meet the documented type requirements for a WriteHandler.
     BOOST_ASIO_WRITE_HANDLER_CHECK(WriteHandler, handler) type_check;
 
+#if defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
     return this->get_service().async_send_to(
         this->get_implementation(), buffers, destination, flags,
         BOOST_ASIO_MOVE_CAST(WriteHandler)(handler));
+#else // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
+    async_completion<WriteHandler,
+      void (boost::system::error_code, std::size_t)> init(handler);
+
+    this->get_service().async_send_to(
+        this->get_implementation(), buffers, destination, flags,
+        init.completion_handler);
+
+    return init.result.get();
+#endif // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
   }
 
   /// Receive some data on a connected socket.
@@ -686,7 +735,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * boost::asio::io_service::post().
+   * boost::asio::io_context::post().
    *
    * @note The async_receive operation can only be used with a connected socket.
    * Use the async_receive_from function to receive data on an unconnected
@@ -704,7 +753,7 @@ public:
    */
   template <typename MutableBufferSequence, typename ReadHandler>
   BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
-      void (boost::system::error_code, std::size_t))
+      void (boost::system::error_code, std::size_t, boost::asio::ip::address))
   async_receive(const MutableBufferSequence& buffers,
       BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
   {
@@ -712,8 +761,18 @@ public:
     // not meet the documented type requirements for a ReadHandler.
     BOOST_ASIO_READ_HANDLER_CHECK_EXT(ReadHandler, handler) type_check;
 
+#if defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
     return this->get_service().async_receive(this->get_implementation(),
         buffers, 0, BOOST_ASIO_MOVE_CAST(ReadHandler)(handler));
+#else // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
+    async_completion<ReadHandler,
+      void (boost::system::error_code, std::size_t, boost::asio::ip::address)> init(handler);
+
+    this->get_service().async_receive(this->get_implementation(),
+        buffers, 0, init.completion_handler);
+
+    return init.result.get();
+#endif // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
   }
 
   /// Start an asynchronous receive on a connected socket.
@@ -738,7 +797,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * boost::asio::io_service::post().
+   * boost::asio::io_context::post().
    *
    * @note The async_receive operation can only be used with a connected socket.
    * Use the async_receive_from function to receive data on an unconnected
@@ -746,7 +805,7 @@ public:
    */
   template <typename MutableBufferSequence, typename ReadHandler>
   BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
-      void (boost::system::error_code, std::size_t))
+      void (boost::system::error_code, std::size_t, boost::asio::ip::address))
   async_receive(const MutableBufferSequence& buffers,
       socket_base::message_flags flags,
       BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
@@ -755,8 +814,18 @@ public:
     // not meet the documented type requirements for a ReadHandler.
     BOOST_ASIO_READ_HANDLER_CHECK_EXT(ReadHandler, handler) type_check;
 
+#if defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
     return this->get_service().async_receive(this->get_implementation(),
         buffers, flags, BOOST_ASIO_MOVE_CAST(ReadHandler)(handler));
+#else // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
+    async_completion<ReadHandler,
+      void (boost::system::error_code, std::size_t, boost::asio::ip::address)> init(handler);
+
+    this->get_service().async_receive(this->get_implementation(),
+        buffers, flags, init.completion_handler);
+
+    return init.result.get();
+#endif // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
   }
 
   /// Receive a datagram with the endpoint of the sender.
@@ -873,7 +942,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * boost::asio::io_service::post().
+   * boost::asio::io_context::post().
    *
    * @par Example
    * To receive into a single data buffer use the @ref buffer function as
@@ -895,9 +964,20 @@ public:
     // not meet the documented type requirements for a ReadHandler.
     BOOST_ASIO_READ_HANDLER_CHECK_EXT(ReadHandler, handler) type_check;
 
+#if defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
     return this->get_service().async_receive_from(
         this->get_implementation(), buffers, sender_endpoint, 0,
         BOOST_ASIO_MOVE_CAST(ReadHandler)(handler));
+#else // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
+    async_completion<ReadHandler,
+      void (boost::system::error_code, std::size_t, boost::asio::ip::address)> init(handler);
+
+    this->get_service().async_receive_from(
+        this->get_implementation(), buffers, sender_endpoint, 0,
+        init.completion_handler);
+
+    return init.result.get();
+#endif // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
   }
 
   /// Start an asynchronous receive.
@@ -927,7 +1007,7 @@ public:
    * Regardless of whether the asynchronous operation completes immediately or
    * not, the handler will not be invoked from within this function. Invocation
    * of the handler will be performed in a manner equivalent to using
-   * boost::asio::io_service::post().
+   * boost::asio::io_context::post().
    */
   template <typename MutableBufferSequence, typename ReadHandler>
   BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
@@ -940,9 +1020,20 @@ public:
     // not meet the documented type requirements for a ReadHandler.
     BOOST_ASIO_READ_HANDLER_CHECK_EXT(ReadHandler, handler) type_check;
 
+#if defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
     return this->get_service().async_receive_from(
         this->get_implementation(), buffers, sender_endpoint, flags,
         BOOST_ASIO_MOVE_CAST(ReadHandler)(handler));
+#else // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
+    async_completion<ReadHandler,
+      void (boost::system::error_code, std::size_t, boost::asio::ip::address)> init(handler);
+
+    this->get_service().async_receive_from(
+        this->get_implementation(), buffers, sender_endpoint, flags,
+        init.completion_handler);
+
+    return init.result.get();
+#endif // defined(BOOST_ASIO_ENABLE_OLD_SERVICES)
   }
 };
 

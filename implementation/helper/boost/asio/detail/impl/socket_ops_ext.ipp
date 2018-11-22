@@ -2,8 +2,8 @@
 // detail/impl/socket_ops_ext.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2015 Christopher M. Kohlhoff (chris at kohlhoff dot com)
-// Copyright (C) 2016-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (c) 2003-2017 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (C) 2016-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_boost or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -101,12 +101,12 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
 
 	  if (cmsg->cmsg_level == IPPROTO_IP)
 	  {
-        struct in_pktinfo *pi = (struct in_pktinfo *) CMSG_DATA(cmsg);
-		 if (pi)
-		 {
-	      da = boost::asio::ip::address_v4(ntohl(pi->ipi_addr.s_addr));
-	    } 
-	  }
+      struct in_pktinfo *pi = (struct in_pktinfo *) CMSG_DATA(cmsg);
+	  if (pi)
+	  {
+	    da = boost::asio::ip::address_v4(ntohl(pi->ipi_addr.s_addr));
+	  } 
+	}      
 	  else if (cmsg->cmsg_level == IPPROTO_IPV6)
 	  {
         struct in6_pktinfo *pi = (struct in6_pktinfo *) CMSG_DATA(cmsg);
@@ -152,7 +152,7 @@ size_t sync_recvfrom(socket_type s, state_type state, buf* bufs,
       return 0;
 
     // Wait for socket to become ready.
-    if (socket_ops::poll_read(s, 0, ec) < 0)
+    if (socket_ops::poll_read(s, 0, -1, ec) < 0)
       return 0;
   }
 }
