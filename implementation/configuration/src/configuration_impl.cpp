@@ -3239,20 +3239,27 @@ std::shared_ptr<debounce> configuration_impl::get_debounce(
 }
 
 std::string configuration_impl::get_address_with_interface(const std::string &ip) const {
+#ifndef _WIN32
     if (boost::asio::ip::address::from_string(ip).is_v6() && ip.find ("%") == std::string::npos) {
         return ip + "%" + interface_name_;
     }
+#endif
     return ip;
 }
 
 boost::asio::ip::address_v6 configuration_impl::get_address_with_interface(const boost::asio::ip::address_v6 &ip) const {
+#ifndef _WIN32
     std::string address = ip.to_string();
     if (address.find(interface_name_) == std::string::npos) {
         address = address + "%" + interface_name_;
     }
     return boost::asio::ip::address_v6::from_string(address);
+#else
+	return ip;
+#endif
 }
 
+#ifndef _WIN32
 void configuration_impl::set_interface_name(const std::string &ip) {
     struct ifaddrs *if_addr_struct = NULL;
     getifaddrs(&if_addr_struct);
@@ -3283,6 +3290,11 @@ void configuration_impl::set_interface_name(const std::string &ip) {
     }
     if (if_addr_struct != NULL) freeifaddrs(if_addr_struct);
 }
+#else
+void configuration_impl::set_interface_name(const std::string &ip) {
+	VSOMEIP_INFO <<  "IP Address " << ip << " is on interface " /*<< ifa->ifa_name*/;
+}	
+#endif
 
 }  // namespace config
 }  // namespace vsomeip

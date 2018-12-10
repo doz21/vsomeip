@@ -171,11 +171,11 @@ elseif(MINGW)
     SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
     message(HEY we use MINGWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW : ${Boost_LIBRARY_DIR})
     message(HEY we use MINGWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW : ${Boost_LIBRARIES})
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DBOOST_LOG_DYN_LINK -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP")
-    set(CMAKE_CXX_FLAGS "-DBOOST_LOG_DYN_LINK -DBOOST_ALL_DYN_LINK -DBOOST_LOG_USE_NATIVE_SYSLOG ${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP -L${Boost_LIBRARY_DIR_DEBUG}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DBOOST_LOG_DYN_LINK -D_WINSOCK_DEPRECATED_NO_WARNINGS -DWIN32 -DBOOST_ASIO_DISABLE_IOCP")
+    set(CMAKE_CXX_FLAGS "-DBOOST_LOG_DYN_LINK -DBOOST_ALL_DYN_LINK -DBOOST_LOG_USE_NATIVE_SYSLOG ${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -DWIN32 -DBOOST_ASIO_DISABLE_IOCP -DMINGW")
     set(USE_RT "ws2_32")
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
-    ADD_DEFINITIONS( -DBOOST_LOG_USE_NATIVE_SYSLOG )  #-DBOOST_ALL_DYN_LINK -DBOOST_LOG_DYN_LINK 
+    ADD_DEFINITIONS(-DBOOST_ALL_DYN_LINK)  #-DBOOST_ALL_DYN_LINK -DBOOST_LOG_DYN_LINK -DBOOST_LOG_USE_NATIVE_SYSLOG
 else()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -DBOOST_LOG_DYN_LINK -g ${OPTIMIZE} -std=c++11 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")
@@ -188,7 +188,7 @@ set_target_properties (vsomeip PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION $
 # them (which shouldn't be required). ${Boost_LIBRARIES} includes absolute
 # build host paths as of writing, which also makes this important as it breaks
 # the build.
-target_link_libraries(vsomeip PRIVATE ${Boost_LOG_SETUP} ${Boost_LOG_LIBRARY} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(vsomeip PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 # Configuration library
 file(GLOB vsomeip-cfg_SRC
@@ -211,6 +211,10 @@ set_target_properties (vsomeip-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSIO
 target_link_libraries(vsomeip-sd vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 if (MSVC)
+    set_target_properties(vsomeip-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+    set_target_properties(vsomeip-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+    set_target_properties(vsomeip PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
+elseif(MINGW)
     set_target_properties(vsomeip-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     set_target_properties(vsomeip-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     set_target_properties(vsomeip PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
@@ -399,7 +403,7 @@ endif()
 
 ##############################################################################
 # build daemon (Non-Windows only)
-if (NOT MSVC)
+if (NOT MSVC AND NOT  MINGW)
 add_custom_target( daemon )
 add_subdirectory( daemon )
 endif()
