@@ -9,7 +9,9 @@
 #include <set>
 #include <sstream>
 #include <limits>
-#include <ifaddrs.h>
+#ifndef _WIN32
+#  include <ifaddrs.h>
+#endif
 
 #define WIN32_LEAN_AND_MEAN
 
