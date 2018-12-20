@@ -21,6 +21,27 @@ namespace asio {
 namespace detail {
 namespace socket_ops {
 
+
+#if defined(BOOST_ASIO_WINDOWS) || defined(__CYGWIN__)
+
+const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt)
+{
+  if (af == AF_INET6)
+  {
+    struct sockaddr_in6 in;
+    memset(&in, 0, sizeof(in));
+    in.sin6_family = AF_INET6;
+    memcpy(&in.sin6_addr, src, sizeof(struct in_addr6));
+    getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in6), dst, cnt, NULL, 0, NI_NUMERICHOST);
+    return dst;
+  }
+  return NULL;
+} 
+
+#endif
+
+
+
 signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
     int flags, socket_addr_type* addr, std::size_t* addrlen,
     boost::system::error_code& ec, boost::asio::ip::address& da)
@@ -59,20 +80,33 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
   if (result >= 0) {
     ec = boost::system::error_code();
 
-	// Find destination address
-	for (LPWSACMSGHDR cmsg = WSA_CMSG_FIRSTHDR(&msg);
-		 cmsg != NULL;
-	  	 cmsg = WSA_CMSG_NXTHDR(&msg, cmsg))
-	{
-	  if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO)
-	  	continue;
+    // Find destination address
+    for (LPWSACMSGHDR cmsg = WSA_CMSG_FIRSTHDR(&msg);
+         cmsg != NULL;
+         cmsg = WSA_CMSG_NXTHDR(&msg, cmsg))
+    {
+      if ((cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO) && (cmsg->cmsg_level != IPPROTO_IPV6 || cmsg->cmsg_type != IPV6_PKTINFO))
+          continue;
 
-      struct in_pktinfo *pi = (struct in_pktinfo *) WSA_CMSG_DATA(cmsg);
-	  if (pi)
-	  {
-	    da = boost::asio::ip::address_v4(ntohl(pi->ipi_addr.s_addr));
-	  } 
-	}      
+      if (cmsg->cmsg_level == IPPROTO_IP)
+      {
+        struct in_pktinfo *pi = (struct in_pktinfo *) WSA_CMSG_DATA(cmsg);
+        if (pi)
+        {
+          da = boost::asio::ip::address_v4(ntohl(pi->ipi_addr.s_addr));
+        }
+      }
+      else if (cmsg->cmsg_level == IPPROTO_IPV6)
+      {
+        struct in6_pktinfo *pi = (struct in6_pktinfo *) WSA_CMSG_DATA(cmsg);
+        if (pi)
+        {
+          char str[INET6_ADDRSTRLEN];
+          inet_ntop(AF_INET6, &( pi->ipi6_addr), str, INET6_ADDRSTRLEN);
+          da = boost::asio::ip::address_v6(boost::asio::ip::address_v6::from_string(str));
+        }
+      }
+    }
   } else {
     dwNumberOfBytesRecvd = -1;
   }

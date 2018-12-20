@@ -69,8 +69,11 @@ void client_endpoint_impl<Protocol>::set_connected(bool _connected) {
         }
     } else {
         state_ = cei_state_e::CLOSED;
-    }}
-template<typename Protocol>void client_endpoint_impl<Protocol>::stop() {
+    }
+}
+
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::stop() {
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
         endpoint_impl<Protocol>::sending_blocked_ = true;

@@ -23,6 +23,8 @@ namespace asio {
 namespace detail {
 namespace socket_ops {
 
+BOOST_ASIO_DECL const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt);
+
 BOOST_ASIO_DECL signed_size_type recvfrom(socket_type s, buf* bufs,
     size_t count, int flags, socket_addr_type* addr,
     std::size_t* addrlen, boost::system::error_code& ec,
