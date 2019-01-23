@@ -823,7 +823,7 @@ void configuration_impl::load_service_discovery(
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.multicast."
                             " Ignoring definition from " << _element.name_;
                 } else {
-                    sd_multicast_ = get_address_with_interface(its_value);
+                    sd_multicast_ = /*get_address_with_interface*/(its_value);
                     is_configured_[ET_SERVICE_DISCOVERY_MULTICAST] = true;
                 }
             } else if (its_key == "port") {
@@ -3241,34 +3241,28 @@ std::shared_ptr<debounce> configuration_impl::get_debounce(
 }
 
 std::string configuration_impl::get_address_with_interface(const std::string &ip) const {
-#ifndef _WIN32
     if (boost::asio::ip::address::from_string(ip).is_v6() && ip.find ("%") == std::string::npos) {
-        return ip + "%" + interface_name_;
+        return ip + interface_name_;
     }
-#endif
     return ip;
 }
 
 boost::asio::ip::address_v6 configuration_impl::get_address_with_interface(const boost::asio::ip::address_v6 &ip) const {
-#ifndef _WIN32
     std::string address = ip.to_string();
     if (address.find(interface_name_) == std::string::npos) {
-        address = address + "%" + interface_name_;
+        address = address + interface_name_;
     }
     return boost::asio::ip::address_v6::from_string(address);
-#else
-	return ip;
-#endif
 }
 
-#ifndef _WIN32
 void configuration_impl::set_interface_name(const std::string &ip) {
-    struct ifaddrs *if_addr_struct = NULL;
-    getifaddrs(&if_addr_struct);
     std::string search_ip = ip;
     if (search_ip.find("%") != std::string::npos) {
         search_ip = search_ip.substr(0, search_ip.find("%"));
     }
+#ifndef _WIN32
+    struct ifaddrs *if_addr_struct = NULL;
+    getifaddrs(&if_addr_struct);
     for (struct ifaddrs *ifa = if_addr_struct; ifa != NULL; ifa = ifa->ifa_next) {
         if (!ifa->ifa_addr) {
             continue;
@@ -3285,18 +3279,40 @@ void configuration_impl::set_interface_name(const std::string &ip) {
             inet_ntop(AF_INET6, tmp_addr_ptr, address_buffer, INET6_ADDRSTRLEN);
             if (search_ip == std::string(address_buffer)){
                 VSOMEIP_INFO <<  "IP Address " << address_buffer << " is on interface " << ifa->ifa_name;
-                interface_name_ = ifa->ifa_name;
-                break;
+                if (((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_scope_id != 0) {
+                    interface_name_ = std::string("%") + std::string(ifa->ifa_name);
+                }
+                else {
+                    VSOMEIP_INFO <<  "Scope is global";
+                }
             }
         }
     }
     if (if_addr_struct != NULL) freeifaddrs(if_addr_struct);
-}
 #else
-void configuration_impl::set_interface_name(const std::string &ip) {
-	VSOMEIP_INFO <<  "IP Address " << ip << " is on interface " /*<< ifa->ifa_name*/;
-}	
+    boost::asio::io_service io_service;
+
+    boost::asio::ip::tcp::resolver resolver(io_service);
+    boost::asio::ip::tcp::resolver::query query(boost::asio::ip::host_name(),"");
+    boost::asio::ip::tcp::resolver::iterator it=resolver.resolve(query);
+
+    while(it!=boost::asio::ip::tcp::resolver::iterator())
+    {
+        boost::asio::ip::address addr=(it++)->endpoint().address();
+        if (addr.to_string().find(search_ip) != std::string::npos)
+        {
+            std::size_t pos = addr.to_string().find("%");
+            if (pos != std::string::npos) {
+                interface_name_ = addr.to_string().substr(pos);
+                VSOMEIP_INFO <<  "IP Address " << ip << " is on interface " << interface_name_;
+            }
+            else {
+                VSOMEIP_INFO <<  "Scope is global";
+            }
+        }
+    }
 #endif
+}
 
 }  // namespace config
 }  // namespace vsomeip
