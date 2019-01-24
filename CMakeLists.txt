@@ -90,7 +90,7 @@ include_directories(
 find_package(Threads REQUIRED)
 
 # Boost
-find_package( Boost 1.66 COMPONENTS system thread log REQUIRED )
+find_package( Boost 1.55 COMPONENTS system thread log REQUIRED )
 include_directories( ${Boost_INCLUDE_DIR} )
 
 if(Boost_FOUND)
@@ -102,6 +102,11 @@ if(Boost_FOUND)
       MESSAGE( STATUS "Boost_LIBRARY_DIR empty but BOOST_LIBRARYDIR is set setting Boost_LIBRARY_DIR to: ${BOOST_LIBRARYDIR}" )
       set(Boost_LIBRARY_DIR ${BOOST_LIBRARYDIR})
     endif()
+  endif()
+  if((${Boost_VERSION} GREATER 106600) OR (${Boost_VERSION} EQUAL 106600))
+    set (BOOST_HELPER_DIR "implementation/helper_106600")
+  else()
+    set (BOOST_HELPER_DIR "implementation/helper")
   endif()
 else()
   MESSAGE( STATUS "Boost was not found!")
@@ -124,7 +129,7 @@ endif(NOT SystemD_FOUND)
 
 include_directories(
     include
-    implementation/helper
+    ${BOOST_HELPER_DIR}
     ${DLT_INCLUDE_DIRS}
 )
 
@@ -168,9 +173,8 @@ if (MSVC)
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
     ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )
 elseif(MINGW)
+    message("using MINGW Compiler")
     SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
-    message(HEY we use MINGWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW : ${Boost_LIBRARY_DIR})
-    message(HEY we use MINGWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW : ${Boost_LIBRARIES})
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DBOOST_LOG_DYN_LINK -D_WINSOCK_DEPRECATED_NO_WARNINGS -DWIN32 -DBOOST_ASIO_DISABLE_IOCP")
     set(CMAKE_CXX_FLAGS "-DBOOST_LOG_DYN_LINK -DBOOST_ALL_DYN_LINK -DBOOST_LOG_USE_NATIVE_SYSLOG ${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -DWIN32 -DBOOST_ASIO_DISABLE_IOCP -DMINGW")
     set(USE_RT "ws2_32")
@@ -180,6 +184,8 @@ else()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -DBOOST_LOG_DYN_LINK -g ${OPTIMIZE} -std=c++11 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")
 endif()
+
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBOOST_VERSION=Boost_VERSION")
 
 add_library(vsomeip SHARED ${vsomeip_SRC} ${vsomeip_e2e_SRC})
 set_target_properties (vsomeip PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
