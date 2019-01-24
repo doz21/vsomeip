@@ -173,6 +173,9 @@ public:
     VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit(
             const std::string& _address, std::uint16_t _port) const;
     VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit_local() const;
+
+    VSOMEIP_EXPORT std::string get_address_with_interface(const std::string &ip) const;
+    VSOMEIP_EXPORT boost::asio::ip::address_v6 get_address_with_interface(const boost::asio::ip::address_v6 &ip) const;
 private:
     void read_data(const std::set<std::string> &_input,
             std::vector<element> &_elements,
@@ -271,6 +274,7 @@ private:
 
     void load_endpoint_queue_sizes(const element &_element);
 
+    void set_interface_name(const std::string &ip);
 private:
     std::mutex mutex_;
 
@@ -278,6 +282,8 @@ private:
     bool is_logging_loaded_;
 
     std::set<std::string> mandatory_;
+
+    std::string interface_name_;
 
 protected:
     // Configuration data

@@ -1333,6 +1333,7 @@ void service_discovery_impl::process_serviceentry(
 
                     boost::asio::ip::address_v6 its_ipv6_address(
                             its_ipv6_option->get_address());
+                    its_ipv6_address = host_->get_configuration()->get_address_with_interface(its_ipv6_address);
 
                     if (its_ipv6_option->get_layer_four_protocol()
                             == layer_four_protocol_e::UDP) {
@@ -2124,6 +2125,7 @@ void service_discovery_impl::process_eventgroupentry(
 
                     boost::asio::ip::address_v6 its_ipv6_address(
                             its_ipv6_option->get_address());
+                    its_ipv6_address = host_->get_configuration()->get_address_with_interface(its_ipv6_address);
                     if (!check_layer_four_protocol(its_ipv6_option)) {
                         if(its_ttl > 0) {
                             if (has_two_options_) {
@@ -2240,6 +2242,7 @@ void service_discovery_impl::process_eventgroupentry(
 
                     boost::asio::ip::address_v6 its_ipv6_address(
                             its_ipv6_option->get_address());
+                    its_ipv6_address = host_->get_configuration()->get_address_with_interface(its_ipv6_address);
 
                     if (its_first_port == ILLEGAL_PORT) {
                         its_first_address = its_ipv6_address;
