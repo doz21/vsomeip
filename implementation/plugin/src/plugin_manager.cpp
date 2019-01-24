@@ -189,7 +189,7 @@ void * plugin_manager::load_symbol(void * _handle,
             std::cerr << "Loading symbol \"" << _symbol << "\" failed (" << GetLastError() << ")" << std::endl;
         }
         else {
-            its_symbol = lpfnDllFunc1;
+            its_symbol = (void*)lpfnDllFunc1;
         }
     }
 #else
