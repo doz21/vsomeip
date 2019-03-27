@@ -1852,6 +1852,15 @@ bool service_discovery_impl::insert_offer_service(
                 insert_option(_message, its_entry, unicast_,
                         its_unreliable->get_local_port(), false);
             }
+
+			std::map<std::string, std::string> configuration_options = host_->get_configuration()->get_configuration_options(_service, _instance);
+			if (configuration_options.size() > 0) {
+				std::shared_ptr < configuration_option_impl > its_option = _message->create_configuration_option();
+				for (std::map<std::string, std::string>::const_iterator it = configuration_options.begin(); it != configuration_options.end(); ++it) {
+					its_option->add_item(it->first, it->second);
+				}
+				its_entry->assign_option(its_option);
+			}
             // This would be a clean solution but does _not_ work with the ANDi tool
             //unsubscribe_all(_service, _instance);
         } else {

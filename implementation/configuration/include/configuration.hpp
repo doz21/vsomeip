@@ -99,6 +99,8 @@ public:
 
     virtual bool is_event_reliable(service_t _service, instance_t _instance, event_t _event) const = 0;
 
+    virtual std::map <std::string, std::string> get_configuration_options(service_t _service, instance_t _instance) const = 0;
+	
     // Service Discovery configuration
     virtual bool is_sd_enabled() const = 0;
 
