@@ -22,6 +22,7 @@
 #include "ip_option_impl.hpp"
 #include "ipv4_option_impl.hpp"
 #include "ipv6_option_impl.hpp"
+#include "configuration_option_impl.hpp"
 #include "deserializer.hpp"
 #include "../../configuration/include/configuration.hpp"
 

@@ -33,6 +33,7 @@ struct service {
     std::shared_ptr<servicegroup> group_;
     std::map<event_t, std::shared_ptr<event> > events_;
     std::map<eventgroup_t, std::shared_ptr<eventgroup> > eventgroups_;
+	std::map <std::string, std::string> configuration_options_;
 };
 
 } // namespace cfg

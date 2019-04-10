@@ -1089,6 +1089,8 @@ void configuration_impl::load_service(
                 load_event(its_service, i->second);
             } else if (its_key == "eventgroups") {
                 load_eventgroup(its_service, i->second);
+            } else if (its_key == "configgroup") {
+                load_configgroup(its_service, i->second);
             } else {
                 // Trim "its_value"
                 if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
@@ -1246,6 +1248,29 @@ void configuration_impl::load_eventgroup(
             _service->eventgroups_[its_eventgroup->id_] = its_eventgroup;
         }
     }
+}
+
+void configuration_impl::load_configgroup(
+        std::shared_ptr<service> &_service,
+        const boost::property_tree::ptree &_tree) {
+	VSOMEIP_WARNING << "right group";
+    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+		std::string its_keyvalue;
+		std::string its_valuevalue;
+        for (auto j = i->second.begin(); j != i->second.end(); ++j) {
+            std::string its_key(j->first);
+            if (its_key == "configkey") {
+                its_keyvalue = j->second.data();
+			}
+            else if (its_key == "configvalue") {
+				its_valuevalue = j->second.data();
+			}
+			if (its_keyvalue != "" && its_valuevalue != "") {
+                VSOMEIP_WARNING << "right group " << its_keyvalue << "=" << its_valuevalue;
+				_service->configuration_options_[its_keyvalue] = its_valuevalue;
+			}
+		}
+	}
 }
 
 void configuration_impl::load_internal_services(const element &_element) {
@@ -2357,6 +2382,15 @@ bool configuration_impl::is_event_reliable(service_t _service,
         }
     }
     return is_reliable;
+}
+
+std::map <std::string, std::string>  configuration_impl::get_configuration_options(service_t _service, instance_t _instance) const {
+    auto its_service = find_service(_service, _instance);
+    if (its_service) {
+		return its_service->configuration_options_;
+	}
+    std::map<std::string, std::string> configuration_option;
+	return configuration_option;
 }
 
 std::shared_ptr<service> configuration_impl::find_service(service_t _service,
