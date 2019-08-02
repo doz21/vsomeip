@@ -238,14 +238,14 @@ bool configuration_impl::load(const std::string &_name) {
     }
     if (its_folder != "") {
         its_input.insert(its_folder);
-    }
-
-    // Add debug configuration folder/file on top of already set input
-    const char* its_debug_env = getenv(VSOMEIP_ENV_DEBUG_CONFIGURATION);
-    if (nullptr != its_debug_env) {
-        its_input.insert(its_debug_env);
-    } else {
-        its_input.insert(VSOMEIP_DEBUG_CONFIGURATION_FOLDER);
+#ifndef _WIN32
+        // load security configuration files from UID_GID sub folder if existing
+        std::stringstream its_security_config_folder;
+        its_security_config_folder << its_folder << "/" << getuid() << "_" << getgid();
+        if (utility::is_folder(its_security_config_folder.str())) {
+            its_input.insert(its_security_config_folder.str());
+        }
+#endif
     }
 
     // Determine standard configuration file
