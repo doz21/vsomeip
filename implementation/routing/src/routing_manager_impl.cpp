@@ -172,6 +172,7 @@ void routing_manager_impl::start() {
 #else
     {
         std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
+        if_state_running_ = true;
         start_ip_routing();
     }
 #endif

@@ -88,10 +88,15 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
     const char* optval("0001");
     ::setsockopt(socket_.native_handle(), IPPROTO_IP, IP_PKTINFO,
         optval, sizeof(optval));
+    ::setsockopt(socket_.native_handle(), IPPROTO_IPV6, IPV6_PKTINFO,
+        optval, sizeof(optval));
 #else
     int optval(1);
     ::setsockopt(socket_.native_handle(), IPPROTO_IP, IP_PKTINFO,
         &optval, sizeof(optval));
+    ::setsockopt(socket_.native_handle(), IPPROTO_IPV6, IPV6_RECVPKTINFO,
+        &optval,sizeof(optval));
+		
 #endif
 }
 

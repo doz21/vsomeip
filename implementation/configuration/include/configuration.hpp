@@ -113,6 +113,8 @@ public:
 
     virtual bool is_event_reliable(service_t _service, instance_t _instance, event_t _event) const = 0;
 
+    virtual std::map <std::string, std::string> get_configuration_options(service_t _service, instance_t _instance) const = 0;
+	
     // Service Discovery configuration
     virtual bool is_sd_enabled() const = 0;
 
@@ -192,6 +194,8 @@ public:
     virtual endpoint_queue_limit_t get_endpoint_queue_limit(
             const std::string& _address, std::uint16_t _port) const = 0;
     virtual endpoint_queue_limit_t get_endpoint_queue_limit_local() const = 0;
+    virtual std::string get_address_with_interface(const std::string &ip) const = 0;
+    virtual boost::asio::ip::address_v6 get_address_with_interface(const boost::asio::ip::address_v6 &ip) const = 0;
 
     virtual std::uint32_t get_max_tcp_restart_aborts() const = 0;
     virtual std::uint32_t get_max_tcp_connect_time() const = 0;

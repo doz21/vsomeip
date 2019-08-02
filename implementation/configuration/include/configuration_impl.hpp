@@ -14,6 +14,8 @@
 #include <list>
 
 #include <boost/property_tree/ptree.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ip/host_name.hpp>
 
 #include "trace.hpp"
 #include "configuration.hpp"
@@ -130,6 +132,7 @@ public:
 
     VSOMEIP_EXPORT bool is_event_reliable(service_t _service, instance_t _instance, event_t _event) const;
 
+	VSOMEIP_EXPORT std::map <std::string, std::string> get_configuration_options(service_t _service, instance_t _instance) const;
     // Service Discovery configuration
     VSOMEIP_EXPORT bool is_sd_enabled() const;
 
@@ -197,6 +200,8 @@ public:
 
     VSOMEIP_EXPORT std::uint32_t get_max_tcp_restart_aborts() const;
     VSOMEIP_EXPORT std::uint32_t get_max_tcp_connect_time() const;
+    VSOMEIP_EXPORT std::string get_address_with_interface(const std::string &ip) const;
+    VSOMEIP_EXPORT boost::asio::ip::address_v6 get_address_with_interface(const boost::asio::ip::address_v6 &ip) const;
 
     VSOMEIP_EXPORT bool offer_acceptance_required(
             const boost::asio::ip::address& _address) const;
@@ -274,6 +279,8 @@ private:
             const boost::property_tree::ptree &_tree);
     void load_eventgroup(std::shared_ptr<service> &_service,
             const boost::property_tree::ptree &_tree);
+    void load_configgroup(std::shared_ptr<service> &_service,
+            const boost::property_tree::ptree &_tree);
 
     void load_internal_services(const element &_element);
 
@@ -339,6 +346,8 @@ private:
     void load_endpoint_queue_sizes(const element &_element);
 
     void load_tcp_restart_settings(const element &_element);
+    void set_interface_name(const std::string &ip);
+
 
     std::shared_ptr<policy> find_client_id_policy(client_t _client) const;
 
@@ -351,6 +360,8 @@ private:
     bool is_logging_loaded_;
 
     std::set<std::string> mandatory_;
+
+    std::string interface_name_;
 
 protected:
     // Configuration data

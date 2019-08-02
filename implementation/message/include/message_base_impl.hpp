@@ -15,7 +15,7 @@
 
 namespace vsomeip {
 
-class message_base_impl
+class VSOMEIP_IMPORT_EXPORT message_base_impl
         : virtual public message_base {
 public:
     VSOMEIP_EXPORT message_base_impl();
