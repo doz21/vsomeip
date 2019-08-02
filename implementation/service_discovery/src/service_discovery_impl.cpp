@@ -1372,7 +1372,7 @@ void service_discovery_impl::process_serviceentry(
 
                     boost::asio::ip::address_v6 its_ipv6_address(
                             its_ipv6_option->get_address());
-                    its_ipv6_address = host_->get_configuration()->get_address_with_interface(its_ipv6_address);
+                    its_ipv6_address = configuration_->get_address_with_interface(its_ipv6_address);
 
                     if (its_ipv6_option->get_layer_four_protocol()
                             == layer_four_protocol_e::UDP) {
@@ -1894,7 +1894,7 @@ bool service_discovery_impl::insert_offer_service(
                         its_unreliable->get_local_port(), false);
             }
 
-			std::map<std::string, std::string> configuration_options = host_->get_configuration()->get_configuration_options(_service, _instance);
+			std::map<std::string, std::string> configuration_options = configuration_->get_configuration_options(_service, _instance);
 			if (configuration_options.size() > 0) {
 				std::shared_ptr < configuration_option_impl > its_option = _message->create_configuration_option();
 				for (std::map<std::string, std::string>::const_iterator it = configuration_options.begin(); it != configuration_options.end(); ++it) {
@@ -2175,7 +2175,7 @@ void service_discovery_impl::process_eventgroupentry(
 
                     boost::asio::ip::address_v6 its_ipv6_address(
                             its_ipv6_option->get_address());
-                    its_ipv6_address = host_->get_configuration()->get_address_with_interface(its_ipv6_address);
+                    its_ipv6_address = configuration_->get_address_with_interface(its_ipv6_address);
                     if (!check_layer_four_protocol(its_ipv6_option)) {
                         if(its_ttl > 0) {
                             if (has_two_options_) {
@@ -2292,7 +2292,7 @@ void service_discovery_impl::process_eventgroupentry(
 
                     boost::asio::ip::address_v6 its_ipv6_address(
                             its_ipv6_option->get_address());
-                    its_ipv6_address = host_->get_configuration()->get_address_with_interface(its_ipv6_address);
+                    its_ipv6_address = configuration_->get_address_with_interface(its_ipv6_address);
 
                     if (its_first_port == ILLEGAL_PORT) {
                         its_first_address = its_ipv6_address;
