@@ -54,7 +54,7 @@ bool tcp_server_endpoint_impl::is_local() const {
 }
 
 void tcp_server_endpoint_impl::start() {
-    std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(acceptor_mutex_);
     if (acceptor_.is_open()) {
         connection::ptr new_connection = connection::create(
                 std::dynamic_pointer_cast<tcp_server_endpoint_impl>(
@@ -63,7 +63,7 @@ void tcp_server_endpoint_impl::start() {
                         service_, send_timeout_);
 
         {
-            std::unique_lock<std::mutex> its_socket_lock(new_connection->get_socket_lock());
+            boost::unique_lock<boost::mutex> its_socket_lock(new_connection->get_socket_lock());
             acceptor_.async_accept(new_connection->get_socket(),
                     std::bind(&tcp_server_endpoint_impl::accept_cbk,
                             std::dynamic_pointer_cast<tcp_server_endpoint_impl>(
@@ -76,14 +76,14 @@ void tcp_server_endpoint_impl::start() {
 void tcp_server_endpoint_impl::stop() {
     server_endpoint_impl::stop();
     {
-        std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(acceptor_mutex_);
         if(acceptor_.is_open()) {
             boost::system::error_code its_error;
             acceptor_.close(its_error);
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(connections_mutex_);
         for (const auto &c : connections_) {
             c.second->stop();
         }
@@ -95,7 +95,7 @@ bool tcp_server_endpoint_impl::send_to(
         const std::shared_ptr<endpoint_definition> _target,
         const byte_t *_data,
         uint32_t _size, bool _flush) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     endpoint_type its_target(_target->get_address(), _target->get_port());
     return send_intern(its_target, _data, _size, _flush);
 }
@@ -103,7 +103,7 @@ bool tcp_server_endpoint_impl::send_to(
 void tcp_server_endpoint_impl::send_queued(const queue_iterator_type _queue_iterator) {
     connection::ptr its_connection;
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(connections_mutex_);
         auto connection_iterator = connections_.find(_queue_iterator->first);
         if (connection_iterator != connections_.end()) {
             its_connection = connection_iterator->second;
@@ -125,7 +125,7 @@ bool tcp_server_endpoint_impl::is_established(std::shared_ptr<endpoint_definitio
     bool is_connected = false;
     endpoint_type endpoint(_endpoint->get_address(), _endpoint->get_port());
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(connections_mutex_);
         auto connection_iterator = connections_.find(endpoint);
         if (connection_iterator != connections_.end()) {
             is_connected = true;
@@ -145,7 +145,7 @@ bool tcp_server_endpoint_impl::get_default_target(service_t,
 
 void tcp_server_endpoint_impl::remove_connection(
         tcp_server_endpoint_impl::connection *_connection) {
-    std::lock_guard<std::mutex> its_lock(connections_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(connections_mutex_);
     for (auto it = connections_.begin(); it != connections_.end();) {
         if (it->second.get() == _connection) {
             it = connections_.erase(it);
@@ -163,7 +163,7 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection,
         boost::system::error_code its_error;
         endpoint_type remote;
         {
-            std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
+            boost::unique_lock<boost::mutex> its_socket_lock(_connection->get_socket_lock());
             socket_type &new_connection_socket = _connection->get_socket();
             remote = new_connection_socket.remote_endpoint(its_error);
             _connection->set_remote_info(remote);
@@ -178,7 +178,7 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection,
         }
         if (!its_error) {
             {
-                std::lock_guard<std::mutex> its_lock(connections_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(connections_mutex_);
                 connections_[remote] = _connection;
             }
             _connection->start();
@@ -262,9 +262,9 @@ tcp_server_endpoint_impl::connection::get_socket() {
     return socket_;
 }
 
-std::unique_lock<std::mutex>
+boost::unique_lock<boost::mutex>
 tcp_server_endpoint_impl::connection::get_socket_lock() {
-    return std::unique_lock<std::mutex>(socket_mutex_);
+    return boost::unique_lock<boost::mutex>(socket_mutex_);
 }
 
 void tcp_server_endpoint_impl::connection::start() {
@@ -272,7 +272,7 @@ void tcp_server_endpoint_impl::connection::start() {
 }
 
 void tcp_server_endpoint_impl::connection::receive() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     if(socket_.is_open()) {
         const std::size_t its_capacity(recv_buffer_.capacity());
         size_t buffer_size = its_capacity - recv_buffer_size_;
@@ -316,7 +316,7 @@ void tcp_server_endpoint_impl::connection::receive() {
 }
 
 void tcp_server_endpoint_impl::connection::stop() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     if (socket_.is_open()) {
         boost::system::error_code its_error;
         socket_.shutdown(socket_.shutdown_both, its_error);
@@ -358,7 +358,7 @@ void tcp_server_endpoint_impl::connection::send_queued(
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         boost::asio::async_write(socket_, boost::asio::buffer(*its_buffer),
                  std::bind(&tcp_server_endpoint_impl::connection::write_completion_condition,
                            shared_from_this(),
@@ -445,7 +445,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                                         recv_buffer_size_);
                             if (its_offset < current_message_size) {
                                 {
-                                    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                                    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                                     VSOMEIP_ERROR << "Detected Magic Cookie within message data. Resyncing."
                                         << " local: " << get_address_port_local()
                                         << " remote: " << get_address_port_remote();
@@ -506,7 +506,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                                     recv_buffer_size_);
                     if (its_offset < recv_buffer_size_) {
                         {
-                            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                            boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                             VSOMEIP_ERROR << "Detected Magic Cookie within message data. Resyncing."
                                 << " local: " << get_address_port_local()
                                 << " remote: " << get_address_port_remote();
@@ -535,7 +535,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                         )) {
                         if (recv_buffer_[its_iteration_gap + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION) {
                             {
-                                std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                                boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                                 VSOMEIP_ERROR << "tse: Wrong protocol version: 0x"
                                         << std::hex << std::setw(2) << std::setfill('0')
                                         << std::uint32_t(recv_buffer_[its_iteration_gap + VSOMEIP_PROTOCOL_VERSION_POS])
@@ -551,7 +551,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                                     remote_address_, remote_port_);
                         } else if (!utility::is_valid_message_type(static_cast<message_type_e>(
                                 recv_buffer_[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS]))) {
-                            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                            boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                             VSOMEIP_ERROR << "tse: Invalid message type: 0x"
                                     << std::hex << std::setw(2) << std::setfill('0')
                                     << std::uint32_t(recv_buffer_[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS])
@@ -560,7 +560,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                                     << ". Closing connection due to missing/broken data TCP stream.";
                         } else if (!utility::is_valid_return_code(static_cast<return_code_e>(
                                 recv_buffer_[its_iteration_gap + VSOMEIP_RETURN_CODE_POS]))) {
-                            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                            boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                             VSOMEIP_ERROR << "tse: Invalid return code: 0x"
                                     << std::hex << std::setw(2) << std::setfill('0')
                                     << std::uint32_t(recv_buffer_[its_iteration_gap + VSOMEIP_RETURN_CODE_POS])
@@ -569,14 +569,14 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                                     << ". Closing connection due to missing/broken data TCP stream.";
                         }
                         {
-                            std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
+                            boost::lock_guard<boost::mutex> its_lock(its_server->connections_mutex_);
                             stop();
                         }
                         its_server->remove_connection(this);
                         return;
                     } else if (max_message_size_ != MESSAGE_SIZE_UNLIMITED
                             && current_message_size > max_message_size_) {
-                        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                         recv_buffer_size_ = 0;
                         recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
                         recv_buffer_.shrink_to_fit();
@@ -599,7 +599,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                                           << get_address_port_local() << " remote: "
                                           << get_address_port_remote();
                             {
-                                std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
+                                boost::lock_guard<boost::mutex> its_lock(its_server->connections_mutex_);
                                 stop();
                             }
                             its_server->remove_connection(this);
@@ -618,14 +618,14 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                         recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
                         recv_buffer_.shrink_to_fit();
                         missing_capacity_ = 0;
-                        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                         VSOMEIP_ERROR << "Didn't find magic cookie in broken"
                                 << " data, trying to resync."
                                 << " local: " << get_address_port_local()
                                 << " remote: " << get_address_port_remote();
                     } else {
                         {
-                            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                            boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                             VSOMEIP_ERROR << "tse::c<" << this
                                     << ">rcb: recv_buffer_size is: " << std::dec
                                     << recv_buffer_size_ << " but couldn't read "
@@ -637,7 +637,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                                     << ". Closing connection due to missing/broken data TCP stream.";
                         }
                         {
-                            std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
+                            boost::lock_guard<boost::mutex> its_lock(its_server->connections_mutex_);
                             stop();
                         }
                         its_server->remove_connection(this);
@@ -663,13 +663,13 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
             || _error == boost::asio::error::connection_reset
             || _error == boost::asio::error::timed_out) {
         if(_error == boost::asio::error::timed_out) {
-            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
             VSOMEIP_WARNING << "tcp_server_endpoint receive_cbk: " << _error.message()
                     << " local: " << get_address_port_local()
                     << " remote: " << get_address_port_remote();
         }
         {
-            std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(its_server->connections_mutex_);
             stop();
         }
         its_server->remove_connection(this);
@@ -690,7 +690,7 @@ void tcp_server_endpoint_impl::connection::calculate_shrink_count() {
 
 client_t tcp_server_endpoint_impl::get_client(std::shared_ptr<endpoint_definition> _endpoint) {
     const endpoint_type endpoint(_endpoint->get_address(), _endpoint->get_port());
-    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(clients_mutex_);
     auto found_endpoint = endpoint_to_client_.find(endpoint);
     if (found_endpoint != endpoint_to_client_.end()) {
         // TODO: Check system byte order before convert!
@@ -826,7 +826,7 @@ void tcp_server_endpoint_impl::connection::stop_and_remove_connection() {
         return;
     }
     {
-        std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(its_server->connections_mutex_);
         stop();
     }
     its_server->remove_connection(this);
@@ -838,10 +838,10 @@ void tcp_server_endpoint_impl::receive() {
 }
 
 void tcp_server_endpoint_impl::print_status() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     connections_t its_connections;
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(connections_mutex_);
         its_connections = connections_;
     }
 
@@ -853,7 +853,7 @@ void tcp_server_endpoint_impl::print_status() {
         std::size_t its_queue_size(0);
         std::size_t its_recv_size(0);
         {
-            std::unique_lock<std::mutex> c_s_lock(c.second->get_socket_lock());
+            boost::unique_lock<boost::mutex> c_s_lock(c.second->get_socket_lock());
             its_recv_size = c.second->get_recv_buffer_capacity();
         }
         auto found_queue = queues_.find(c.first);

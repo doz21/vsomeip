@@ -15,7 +15,7 @@
 #include <vsomeip/export.hpp>
 #include "server_endpoint_impl.hpp"
 
-#include <chrono>
+#include <boost/chrono.hpp>
 
 namespace vsomeip {
 
@@ -69,7 +69,7 @@ private:
                           boost::asio::io_service & _io_service,
                           std::chrono::milliseconds _send_timeout);
         socket_type & get_socket();
-        std::unique_lock<std::mutex> get_socket_lock();
+        boost::unique_lock<boost::mutex> get_socket_lock();
 
         void start();
         void stop();
@@ -103,7 +103,7 @@ private:
                 std::chrono::steady_clock::time_point _start);
         void stop_and_remove_connection();
 
-        std::mutex socket_mutex_;
+        boost::mutex socket_mutex_;
         tcp_server_endpoint_impl::socket_type socket_;
         std::weak_ptr<tcp_server_endpoint_impl> server_;
 
@@ -125,9 +125,9 @@ private:
         const std::chrono::milliseconds send_timeout_warning_;
     };
 
-    std::mutex acceptor_mutex_;
+    boost::mutex acceptor_mutex_;
     boost::asio::ip::tcp::acceptor acceptor_;
-    std::mutex connections_mutex_;
+    boost::mutex connections_mutex_;
     typedef std::map<endpoint_type, connection::ptr> connections_t;
     connections_t connections_;
     const std::uint32_t buffer_shrink_threshold_;

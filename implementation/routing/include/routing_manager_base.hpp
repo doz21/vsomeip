@@ -6,10 +6,10 @@
 #ifndef VSOMEIP_ROUTING_MANAGER_BASE
 #define VSOMEIP_ROUTING_MANAGER_BASE
 
-#include <mutex>
 #include <unordered_set>
 #include <queue>
-#include <condition_variable>
+
+#include <boost/thread.hpp>
 
 #include <vsomeip/constants.hpp>
 #include "routing_manager.hpp"
@@ -234,23 +234,23 @@ protected:
 
     std::shared_ptr<configuration> configuration_;
     std::shared_ptr<serializer> serializer_;
-    std::mutex serialize_mutex_;
+    boost::mutex serialize_mutex_;
 
     std::queue<std::shared_ptr<deserializer>> deserializers_;
-    std::mutex deserializer_mutex_;
-    std::condition_variable deserializer_condition_;
+    boost::mutex deserializer_mutex_;
+    boost::condition_variable deserializer_condition_;
 
-    std::mutex local_services_mutex_;
+    boost::mutex local_services_mutex_;
     std::map<service_t, std::map<instance_t, std::tuple< major_version_t, minor_version_t, client_t> > > local_services_;
     std::map<service_t, std::map<instance_t, std::set<client_t> > > local_services_history_;
 
     // Eventgroups
-    mutable std::mutex eventgroups_mutex_;
+    mutable boost::mutex eventgroups_mutex_;
     std::map<service_t,
             std::map<instance_t,
                     std::map<eventgroup_t, std::shared_ptr<eventgroupinfo> > > > eventgroups_;
     // Events (part of one or more eventgroups)
-    mutable std::mutex events_mutex_;
+    mutable boost::mutex events_mutex_;
     std::map<service_t,
             std::map<instance_t, std::map<event_t, std::shared_ptr<event> > > > events_;
 
@@ -282,22 +282,22 @@ protected:
     std::set<subscription_data_t> pending_subscriptions_;
 
     services_t services_remote_;
-    mutable std::mutex services_remote_mutex_;
+    mutable boost::mutex services_remote_mutex_;
 
 private:
     services_t services_;
-    mutable std::mutex services_mutex_;
+    mutable boost::mutex services_mutex_;
 
     std::map<client_t, std::shared_ptr<endpoint> > local_endpoints_;
-    mutable std::mutex local_endpoint_mutex_;
+    mutable boost::mutex local_endpoint_mutex_;
 
     std::map<service_t,
         std::map<instance_t,
             std::map<eventgroup_t,
                 std::shared_ptr<message> > > > pending_notify_ones_;
-    std::recursive_mutex pending_notify_ones_mutex_;
+    boost::recursive_mutex pending_notify_ones_mutex_;
 
-    std::mutex event_registration_mutex_;
+    boost::mutex event_registration_mutex_;
 
     std::map<client_t,
         std::map<service_t,
@@ -305,7 +305,7 @@ private:
                 std::map<eventgroup_t,
                     std::map<event_t,
                         subscription_state_e> > > > > incoming_subscription_state_;
-    std::recursive_mutex incoming_subscription_state_mutex_;
+    boost::recursive_mutex incoming_subscription_state_mutex_;
 
 };
 

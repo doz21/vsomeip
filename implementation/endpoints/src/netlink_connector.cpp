@@ -25,7 +25,7 @@ void netlink_connector::unregister_net_if_changes_handler() {
 }
 
 void netlink_connector::stop() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     socket_.shutdown(socket_.shutdown_both, its_error);
     socket_.close(its_error);
@@ -35,7 +35,7 @@ void netlink_connector::stop() {
 }
 
 void netlink_connector::start() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     boost::system::error_code ec;
     if (socket_.is_open()) {
         socket_.close(ec);
@@ -191,7 +191,7 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
             nlh = NLMSG_NEXT(nlh, len);
         }
         {
-            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
             if (socket_.is_open()) {
                 socket_.async_receive(
                     boost::asio::buffer(&recv_buffer_[0], recv_buffer_size),
@@ -209,7 +209,7 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
             VSOMEIP_WARNING << "Error receive_cbk NETLINK socket!" << _error.message();
             boost::system::error_code its_error;
             {
-                std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                 if (socket_.is_open()) {
                     socket_.shutdown(socket_.shutdown_both, its_error);
                     socket_.close(its_error);
@@ -280,7 +280,7 @@ void netlink_connector::send_ifi_request() {
     get_link_msg.nlhdr.nlmsg_seq = 2;
 
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         socket_.async_send(
             boost::asio::buffer(&get_link_msg, get_link_msg.nlhdr.nlmsg_len),
             std::bind(
@@ -312,7 +312,7 @@ void netlink_connector::send_rt_request() {
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         socket_.async_send(
             boost::asio::buffer(&get_route_msg, get_route_msg.nlhdr.nlmsg_len),
             std::bind(

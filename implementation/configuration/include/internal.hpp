@@ -16,11 +16,10 @@
 #define VSOMEIP_ENV_MANDATORY_CONFIGURATION_FILES "VSOMEIP_MANDATORY_CONFIGURATION_FILES"
 #define VSOMEIP_ENV_LOAD_PLUGINS                "VSOMEIP_LOAD_PLUGINS"
 #define VSOMEIP_ENV_CLIENTSIDELOGGING           "VSOMEIP_CLIENTSIDELOGGING"
-#define VSOMEIP_ENV_DEBUG_CONFIGURATION         "VSOMEIP_DEBUG_CONFIGURATION"
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FILE      "/etc/vsomeip.json"
 #define VSOMEIP_LOCAL_CONFIGURATION_FILE        "./vsomeip.json"
-#define VSOMEIP_MANDATORY_CONFIGURATION_FILES   "vsomeip_std.json,vsomeip_app.json,vsomeip_plc.json,vsomeip_log.json,vsomeip_security.json"
+#define VSOMEIP_MANDATORY_CONFIGURATION_FILES   "vsomeip_std.json,vsomeip_app.json,vsomeip_plc.json,vsomeip_log.json,vsomeip_security.json,vsomeip_whitelist.json"
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FOLDER    "/etc/vsomeip"
 #define VSOMEIP_DEBUG_CONFIGURATION_FOLDER      "/var/opt/public/sin/vsomeip/"
@@ -29,13 +28,21 @@
 #define VSOMEIP_BASE_PATH                       "/tmp/"
 
 #ifdef WIN32
+#ifdef MINGW
+#define VSOMEIP_CFG_LIBRARY                     "libvsomeip-cfg.dll"
+#else
 #define VSOMEIP_CFG_LIBRARY                     "vsomeip-cfg.dll"
+#endif
 #else
 #define VSOMEIP_CFG_LIBRARY                     "libvsomeip-cfg.so.2"
 #endif
 
 #ifdef WIN32
+#ifdef MINGW
+#define VSOMEIP_SD_LIBRARY                      "libvsomeip-sd.dll"
+#else
 #define VSOMEIP_SD_LIBRARY                      "vsomeip-sd.dll"
+#endif
 #else
 #define VSOMEIP_SD_LIBRARY                      "libvsomeip-sd.so.2"
 #endif
@@ -50,15 +57,26 @@
 #endif
 
 #define VSOMEIP_UNICAST_ADDRESS                 "127.0.0.1"
+#define VSOMEIP_NETMASK                         "255.255.255.0"
 
 #define VSOMEIP_DEFAULT_CONNECT_TIMEOUT         100
 #define VSOMEIP_MAX_CONNECT_TIMEOUT             1600
 #define VSOMEIP_DEFAULT_FLUSH_TIMEOUT           1000
 
+#define VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT        5000
+
+#define VSOMEIP_MAX_TCP_CONNECT_TIME            5000
+#define VSOMEIP_MAX_TCP_RESTART_ABORTS          5
+
+#define VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD 5
+
 #define VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT        5000
 #define VSOMEIP_DEFAULT_MAX_MISSING_PONGS       3
 
+#define VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE     1703936
+
 #define VSOMEIP_IO_THREAD_COUNT                 2
+#define VSOMEIP_IO_THREAD_NICE_LEVEL            255
 
 #define VSOMEIP_MAX_DISPATCHERS                 10
 #define VSOMEIP_MAX_DISPATCH_TIME               100
@@ -104,6 +122,14 @@
 #define VSOMEIP_OFFERED_SERVICES_REQUEST        0x1F
 #define VSOMEIP_OFFERED_SERVICES_RESPONSE       0x20
 #define VSOMEIP_UNSUBSCRIBE_ACK                 0x21
+#define VSOMEIP_RESEND_PROVIDED_EVENTS          0x22
+
+#define VSOMEIP_UPDATE_SECURITY_POLICY          0x23
+#define VSOMEIP_UPDATE_SECURITY_POLICY_RESPONSE 0x24
+#define VSOMEIP_REMOVE_SECURITY_POLICY          0x25
+#define VSOMEIP_REMOVE_SECURITY_POLICY_RESPONSE 0x26
+#define VSOMEIP_UPDATE_SECURITY_CREDENTIALS     0x27
+#define VSOMEIP_DISTRIBUTE_SECURITY_POLICIES    0x28
 
 #define VSOMEIP_SEND_COMMAND_SIZE               14
 #define VSOMEIP_SEND_COMMAND_INSTANCE_POS_MIN   7
@@ -129,6 +155,16 @@
 #define VSOMEIP_ID_RESPONSE_COMMAND_SIZE        12
 #define VSOMEIP_ID_REQUEST_COMMAND_SIZE         13
 #define VSOMEIP_OFFERED_SERVICES_COMMAND_SIZE    8
+#define VSOMEIP_RESEND_PROVIDED_EVENTS_COMMAND_SIZE 11
+#define VSOMEIP_REMOVE_SECURITY_POLICY_COMMAND_SIZE 19
+#define VSOMEIP_UPDATE_SECURITY_POLICY_RESPONSE_COMMAND_SIZE 11
+#define VSOMEIP_REMOVE_SECURITY_POLICY_RESPONSE_COMMAND_SIZE 11
+#define VSOMEIP_PING_COMMAND_SIZE                7
+#define VSOMEIP_PONG_COMMAND_SIZE                7
+#define VSOMEIP_REGISTER_APPLICATION_COMMAND_SIZE 7
+#define VSOMEIP_DEREGISTER_APPLICATION_COMMAND_SIZE 7
+#define VSOMEIP_REGISTERED_ACK_COMMAND_SIZE      7
+
 
 #ifndef _WIN32
 #include <pthread.h>
@@ -138,7 +174,7 @@
 #define VSOMEIP_DIAGNOSIS_ADDRESS               0x00
 
 #define VSOMEIP_DEFAULT_SHM_PERMISSION          0666
-#define VSOMEIP_DEFAULT_UMASK_LOCAL_ENDPOINTS   0000
+#define VSOMEIP_DEFAULT_UDS_PERMISSIONS         0666
 
 #define VSOMEIP_ROUTING_READY_MESSAGE           "SOME/IP routing ready."
 
@@ -180,7 +216,7 @@ struct configuration_data_t {
     unsigned short client_base_;
     unsigned short max_clients_;
     int max_used_client_ids_index_;
-    unsigned short max_assigned_client_id_without_diagnosis_;
+    unsigned short max_assigned_client_id_;
     unsigned short routing_manager_host_;
     // array of used client ids here, pointer to it is kept in utility class
 };
@@ -188,6 +224,8 @@ struct configuration_data_t {
 const std::uint32_t MESSAGE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
 
 const std::uint32_t QUEUE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
+
+const std::uint32_t MAX_RECONNECTS_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
 
 
 } // namespace vsomeip

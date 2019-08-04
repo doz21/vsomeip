@@ -114,7 +114,7 @@ void udp_server_endpoint_impl::start() {
 void udp_server_endpoint_impl::stop() {
     server_endpoint_impl::stop();
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         if (socket_.is_open()) {
             boost::system::error_code its_error;
             socket_.shutdown(socket_type::shutdown_both, its_error);
@@ -124,7 +124,7 @@ void udp_server_endpoint_impl::stop() {
 }
 
 void udp_server_endpoint_impl::receive() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     if(socket_.is_open()) {
         socket_.async_receive_from(
                 boost::asio::buffer(&recv_buffer_[0], max_message_size_),
@@ -144,7 +144,7 @@ void udp_server_endpoint_impl::receive() {
 bool udp_server_endpoint_impl::send_to(
     const std::shared_ptr<endpoint_definition> _target,
     const byte_t *_data, uint32_t _size, bool _flush) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     endpoint_type its_target(_target->get_address(), _target->get_port());
     return send_intern(its_target, _data, _size, _flush);
 }
@@ -162,7 +162,7 @@ void udp_server_endpoint_impl::send_queued(
         VSOMEIP_INFO << msg.str();
 #endif
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         socket_.async_send_to(
             boost::asio::buffer(*its_buffer),
             _queue_iterator->first,
@@ -178,14 +178,14 @@ void udp_server_endpoint_impl::send_queued(
 }
 
 bool udp_server_endpoint_impl::is_joined(const std::string &_address) const {
-    std::lock_guard<std::mutex> its_lock(joined_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(joined_mutex_);
     return (joined_.find(_address) != joined_.end());
 }
 
 bool udp_server_endpoint_impl::is_joined(
         const std::string &_address, bool* _received) const {
     *_received = false;
-    std::lock_guard<std::mutex> its_lock(joined_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(joined_mutex_);
     const auto found_address = joined_.find(_address);
     if (found_address != joined_.end()) {
         *_received = found_address->second;
@@ -201,12 +201,12 @@ void udp_server_endpoint_impl::join(const std::string &_address) {
             bool is_v4(false);
             bool is_v6(false);
             {
-                std::lock_guard<std::mutex> its_lock(local_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(local_mutex_);
                 is_v4 = local_.address().is_v4();
                 is_v6 = local_.address().is_v6();
             }
             if (is_v4) {
-                std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                 socket_.set_option(ip::udp_ext::socket::reuse_address(true));
                 socket_.set_option(
                     boost::asio::ip::multicast::enable_loopback(false));
@@ -219,7 +219,7 @@ void udp_server_endpoint_impl::join(const std::string &_address) {
                     boost::asio::ip::address::from_string(_address).to_v4()));
 #endif
             } else if (is_v6) {
-                std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                 socket_.set_option(ip::udp_ext::socket::reuse_address(true));
                 socket_.set_option(
                     boost::asio::ip::multicast::enable_loopback(false));
@@ -233,7 +233,7 @@ void udp_server_endpoint_impl::join(const std::string &_address) {
 #endif
             }
             {
-                std::lock_guard<std::mutex> its_lock(joined_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(joined_mutex_);
                 joined_[_address] = false;
             }
             joined_group_ = true;
@@ -257,21 +257,21 @@ void udp_server_endpoint_impl::leave(const std::string &_address) {
             bool is_v4(false);
             bool is_v6(false);
             {
-                std::lock_guard<std::mutex> its_lock(local_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(local_mutex_);
                 is_v4 = local_.address().is_v4();
                 is_v6 = local_.address().is_v6();
             }
             if (is_v4) {
-                std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                 socket_.set_option(boost::asio::ip::multicast::leave_group(
                     boost::asio::ip::address::from_string(_address)));
             } else if (is_v6) {
-                std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                 socket_.set_option(boost::asio::ip::multicast::leave_group(
                     boost::asio::ip::address::from_string(_address)));
             }
             {
-                std::lock_guard<std::mutex> its_lock(joined_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(joined_mutex_);
                 joined_.erase(_address);
                 if (!joined_.size()) {
                     joined_group_ = false;
@@ -286,20 +286,20 @@ void udp_server_endpoint_impl::leave(const std::string &_address) {
 
 void udp_server_endpoint_impl::add_default_target(
         service_t _service, const std::string &_address, uint16_t _port) {
-    std::lock_guard<std::mutex> its_lock(default_targets_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(default_targets_mutex_);
     endpoint_type its_endpoint(
             boost::asio::ip::address::from_string(_address), _port);
     default_targets_[_service] = its_endpoint;
 }
 
 void udp_server_endpoint_impl::remove_default_target(service_t _service) {
-    std::lock_guard<std::mutex> its_lock(default_targets_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(default_targets_mutex_);
     default_targets_.erase(_service);
 }
 
 bool udp_server_endpoint_impl::get_default_target(service_t _service,
         udp_server_endpoint_impl::endpoint_type &_target) const {
-    std::lock_guard<std::mutex> its_lock(default_targets_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(default_targets_mutex_);
     bool is_valid(false);
     auto find_service = default_targets_.find(_service);
     if (find_service != default_targets_.end()) {
@@ -404,7 +404,7 @@ void udp_server_endpoint_impl::receive_cbk(
                     } else if (its_service != VSOMEIP_SD_SERVICE
                             && utility::is_notification(recv_buffer_[i + VSOMEIP_MESSAGE_TYPE_POS])
                             && joined_group_) {
-                        std::lock_guard<std::mutex> its_lock(joined_mutex_);
+                        boost::lock_guard<boost::mutex> its_lock(joined_mutex_);
                         boost::system::error_code ec;
                         const auto found_address = joined_.find(_destination.to_string(ec));
                         if (found_address != joined_.end()) {
@@ -450,7 +450,7 @@ void udp_server_endpoint_impl::receive_cbk(
 
 client_t udp_server_endpoint_impl::get_client(std::shared_ptr<endpoint_definition> _endpoint) {
     const endpoint_type endpoint(_endpoint->get_address(), _endpoint->get_port());
-    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(clients_mutex_);
     auto found_endpoint = endpoint_to_client_.find(endpoint);
     if (found_endpoint != endpoint_to_client_.end()) {
         // TODO: Check system byte order before convert!
@@ -461,7 +461,7 @@ client_t udp_server_endpoint_impl::get_client(std::shared_ptr<endpoint_definitio
 }
 
 void udp_server_endpoint_impl::print_status() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
 
     VSOMEIP_INFO << "status use: " << std::dec << local_port_
             << " number queues: " << std::dec << queues_.size()
@@ -490,7 +490,7 @@ std::string udp_server_endpoint_impl::get_remote_information(
 }
 
 const std::string udp_server_endpoint_impl::get_address_port_local() const {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     std::string its_address_port;
     its_address_port.reserve(21);
     boost::system::error_code ec;

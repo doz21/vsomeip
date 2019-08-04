@@ -415,18 +415,18 @@ bool message_impl::all_required_acks_contained() const {
     return number_contained_acks_ >= number_required_acks_;
 }
 
-std::unique_lock<std::mutex> message_impl::get_message_lock() {
-    return std::unique_lock<std::mutex>(message_mutex_);
+boost::unique_lock<boost::mutex> message_impl::get_message_lock() {
+    return boost::unique_lock<boost::mutex>(message_mutex_);
 }
 
 void message_impl::forced_initial_events_add(forced_initial_events_t _entry) {
-    std::lock_guard<std::mutex> its_lock(forced_initial_events_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(forced_initial_events_mutex_);
     forced_initial_events_info_.push_back(_entry);
 }
 
 const std::vector<message_impl::forced_initial_events_t>
 message_impl::forced_initial_events_get() {
-    std::lock_guard<std::mutex> its_lock(forced_initial_events_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(forced_initial_events_mutex_);
     return forced_initial_events_info_;
 }
 

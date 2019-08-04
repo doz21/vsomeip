@@ -8,13 +8,8 @@
 #include <stdlib.h>
 #include <iostream>
 
-#ifdef _WIN32
-    #ifndef _WINSOCKAPI_
-        #include <Windows.h>
-    #endif
-#else
-    #include <dlfcn.h>
-#endif
+#include <boost/function.hpp>
+#include <boost/dll/import.hpp>
 
 #include <vsomeip/plugins/application_plugin.hpp>
 #include <vsomeip/plugins/pre_configuration_plugin.hpp>
@@ -44,7 +39,7 @@ plugin_manager::~plugin_manager() {
 
 void plugin_manager::load_plugins() {
     {
-        std::lock_guard<std::mutex> its_lock_start_stop(loader_mutex_);
+        boost::lock_guard<boost::mutex> its_lock_start_stop(loader_mutex_);
         if (plugins_loaded_) {
             return;
         }
@@ -62,9 +57,11 @@ void plugin_manager::load_plugins() {
         }
     }
 
-    std::lock_guard<std::recursive_mutex> its_lock_start_stop(plugins_mutex_);
+    boost::lock_guard<boost::recursive_mutex> its_lock_start_stop(plugins_mutex_);
     // Load plug-in info from libraries parsed before
     for (auto plugin_name : plugins) {
+		std::shared_ptr<boost::dll::shared_library> handle = std::make_shared<boost::dll::shared_library> (plugin_name, boost::dll::load_mode::rtld_lazy | boost::dll::load_mode::rtld_global);
+/*
         void* handle = load_library(plugin_name);
         plugin_init_func its_init_func =  reinterpret_cast<plugin_init_func>(
                 load_symbol(handle, VSOMEIP_PLUGIN_INIT_SYMBOL));
@@ -100,12 +97,12 @@ void plugin_manager::load_plugins() {
                     }
                 }
             }
-        }
+        }*/
     }
 }
 
 std::shared_ptr<plugin> plugin_manager::get_plugin(plugin_type_e _type, std::string _name) {
-    std::lock_guard<std::recursive_mutex> its_lock_start_stop(plugins_mutex_);
+    boost::lock_guard<boost::recursive_mutex> its_lock_start_stop(plugins_mutex_);
     auto its_type = plugins_.find(_type);
     if (its_type != plugins_.end()) {
         auto its_name = its_type->second.find(_name);
@@ -118,9 +115,11 @@ std::shared_ptr<plugin> plugin_manager::get_plugin(plugin_type_e _type, std::str
 
 std::shared_ptr<plugin> plugin_manager::load_plugin(const std::string _library,
         plugin_type_e _type, uint32_t _version) {
-    void* handle = load_library(_library);
+    std::shared_ptr<boost::dll::shared_library> handle = std::make_shared<boost::dll::shared_library> (_library, boost::dll::load_mode::rtld_lazy | boost::dll::load_mode::rtld_global);
+/*    
     plugin_init_func its_init_func = reinterpret_cast<plugin_init_func>(
             load_symbol(handle, VSOMEIP_PLUGIN_INIT_SYMBOL));
+            
     if (its_init_func) {
         create_plugin_func its_create_func = (*its_init_func)();
         if (its_create_func) {
@@ -137,22 +136,16 @@ std::shared_ptr<plugin> plugin_manager::load_plugin(const std::string _library,
                 }
             }
         }
-    }
+    }*/
     return nullptr;
 }
 
 bool plugin_manager::unload_plugin(plugin_type_e _type) {
-    std::lock_guard<std::recursive_mutex> its_lock_start_stop(plugins_mutex_);
+    boost::lock_guard<boost::recursive_mutex> its_lock_start_stop(plugins_mutex_);
     const auto found_handle = handles_.find(_type);
     if (found_handle != handles_.end()) {
         for (auto its_name : found_handle->second) {
-#ifdef _WIN32
-            FreeLibrary((HMODULE)its_name.second);
-#else
-            if (dlclose(its_name.second)) {
-                VSOMEIP_ERROR << "Unloading failed: (" << dlerror() << ")";
-            }
-#endif
+			its_name.second->unload();
         }
     } else {
         VSOMEIP_ERROR << "plugin_manager::unload_plugin didn't find plugin"
@@ -166,17 +159,28 @@ void plugin_manager::add_plugin(const std::shared_ptr<plugin> &_plugin, const st
     plugins_[_plugin->get_plugin_type()][_name] = _plugin;
 }
 
-void * plugin_manager::load_library(const std::string &_path) {
-#ifdef _WIN32
-    return LoadLibrary(_path.c_str());
-#else
-    return dlopen(_path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
-#endif
+/*
+boost::dll::shared_library* plugin_manager::load_library(const std::string &_path) {
+	boost::dll::shared_library* lib = new boost::dll::shared_library();
+	try
+	{
+		lib.load(path);
+	}
+	catch(...)
+	{
+		std::cerr << "Loading library \"" << path << "\" failed"  << std::endl;
+		delete lib;
+		lib = NULL;
+	}
+	return lib;
 }
 
 void * plugin_manager::load_symbol(void * _handle,
         const std::string &_symbol) {
     void * its_symbol = 0;
+    
+    
+    
 #ifdef _WIN32
     HINSTANCE hDLL = (HINSTANCE)_handle;
     if (hDLL != NULL) {
@@ -206,5 +210,5 @@ void * plugin_manager::load_symbol(void * _handle,
 #endif
     return (its_symbol);
 }
-
+*/
 }

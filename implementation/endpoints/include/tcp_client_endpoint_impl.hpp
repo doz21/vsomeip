@@ -7,7 +7,7 @@
 #define VSOMEIP_TCP_CLIENT_ENDPOINT_IMPL_HPP
 
 #include <boost/asio/ip/tcp.hpp>
-#include <chrono>
+#include <boost/chrono.hpp>
 
 #include <vsomeip/defines.hpp>
 #include "client_endpoint_impl.hpp"

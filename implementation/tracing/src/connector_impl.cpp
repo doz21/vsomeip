@@ -84,11 +84,11 @@ void connector_impl::configure(const std::shared_ptr<cfg::trace> &_configuration
 
 void connector_impl::reset() {
 #ifdef USE_DLT
-    std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
+    boost::lock_guard<boost::mutex> its_contexts_lock(contexts_mutex_);
     contexts_.clear();
 #endif
     // reset to default
-    std::lock_guard<std::mutex> its_lock_channels(channels_mutex_);
+    boost::lock_guard<boost::mutex> its_lock_channels(channels_mutex_);
     channels_.clear();
 }
 
@@ -118,7 +118,7 @@ bool connector_impl::is_sd_message(const byte_t *_data, uint16_t _data_size) con
 
 std::shared_ptr<channel> connector_impl::add_channel(
         const trace_channel_t &_id, const std::string &_name) {
-    std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
+    boost::lock_guard<boost::mutex> its_channels_lock(channels_mutex_);
 
     // check whether we already know the requested channel
     if (channels_.find(_id) != channels_.end())
@@ -133,7 +133,7 @@ std::shared_ptr<channel> connector_impl::add_channel(
 
     // register context
 #ifdef USE_DLT
-    std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
+    boost::lock_guard<boost::mutex> its_contexts_lock(contexts_mutex_);
     std::shared_ptr<DltContext> its_context = std::make_shared<DltContext>();
     contexts_[_id] = its_context;
     DLT_REGISTER_CONTEXT_LL_TS(*(its_context.get()), _id.c_str(), _name.c_str(),
@@ -149,12 +149,12 @@ bool connector_impl::remove_channel(const trace_channel_t &_id) {
         return false;
     }
 
-    std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
+    boost::lock_guard<boost::mutex> its_channels_lock(channels_mutex_);
     bool has_removed = (channels_.erase(_id) == 1);
     if (has_removed) {
         // unregister context
 #ifdef USE_DLT
-        std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
+        boost::lock_guard<boost::mutex> its_contexts_lock(contexts_mutex_);
         auto its_context = contexts_.find(_id);
         if (its_context != contexts_.end()) {
             DLT_UNREGISTER_CONTEXT(*(its_context->second.get()));
@@ -166,7 +166,7 @@ bool connector_impl::remove_channel(const trace_channel_t &_id) {
 }
 
 std::shared_ptr<channel> connector_impl::get_channel(const std::string &_id) const {
-    std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
+    boost::lock_guard<boost::mutex> its_channels_lock(channels_mutex_);
     auto its_channel = channels_.find(_id);
     return (its_channel != channels_.end() ? its_channel->second : nullptr);
 }
@@ -198,8 +198,8 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
             _data[VSOMEIP_METHOD_POS_MAX]);
 
     // Forward to channel if the filter set of the channel allows
-    std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
-    std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
+    boost::lock_guard<boost::mutex> its_channels_lock(channels_mutex_);
+    boost::lock_guard<boost::mutex> its_contexts_lock(contexts_mutex_);
     for (auto its_channel : channels_) {
         if (its_channel.second->matches(its_service, its_instance, its_method)) {
             auto its_context = contexts_.find(its_channel.second->get_id());

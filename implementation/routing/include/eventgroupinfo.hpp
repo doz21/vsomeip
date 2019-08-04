@@ -10,9 +10,9 @@
 #include <list>
 #include <memory>
 #include <set>
-#include <mutex>
 #include <atomic>
 
+#include <boost/thread.hpp>
 #include <boost/asio/ip/address.hpp>
 
 #include <vsomeip/export.hpp>
@@ -77,7 +77,7 @@ public:
     VSOMEIP_EXPORT uint8_t get_threshold() const;
     VSOMEIP_EXPORT void set_threshold(uint8_t _threshold);
 
-    VSOMEIP_EXPORT std::unique_lock<std::mutex> get_subscription_lock();
+    VSOMEIP_EXPORT boost::unique_lock<boost::mutex> get_subscription_lock();
 
     VSOMEIP_EXPORT pending_subscription_id_t add_pending_subscription(
             pending_subscription_t _pending_subscription);
@@ -90,24 +90,24 @@ private:
     std::atomic<major_version_t> major_;
     std::atomic<ttl_t> ttl_;
 
-    mutable std::mutex address_mutex_;
+    mutable boost::mutex address_mutex_;
     boost::asio::ip::address address_;
     uint16_t port_;
 
-    mutable std::mutex events_mutex_;
+    mutable boost::mutex events_mutex_;
     std::set<std::shared_ptr<event> > events_;
-    mutable std::mutex targets_mutex_;
+    mutable boost::mutex targets_mutex_;
     std::list<target_t> targets_;
-    mutable std::mutex multicast_targets_mutex_;
+    mutable boost::mutex multicast_targets_mutex_;
     std::list<target_t> multicast_targets_;
 
     std::atomic<uint8_t> threshold_;
-    std::mutex subscription_mutex_;
+    boost::mutex subscription_mutex_;
 
     std::atomic<bool> has_reliable_;
     std::atomic<bool> has_unreliable_;
 
-    std::mutex pending_subscriptions_mutex_;
+    boost::mutex pending_subscriptions_mutex_;
     std::map<pending_subscription_id_t, pending_subscription_t> pending_subscriptions_;
     std::map<std::tuple<boost::asio::ip::address, std::uint16_t, bool>,
             std::vector<pending_subscription_id_t>> pending_subscriptions_by_remote_;

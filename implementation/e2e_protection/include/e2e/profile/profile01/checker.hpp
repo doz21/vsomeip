@@ -27,7 +27,7 @@ class profile_01_checker final : public e2e::profile_interface::checker {
 
 private:
     profile_config config_;
-    std::mutex check_mutex_;
+    boost::mutex check_mutex_;
 
 };
 

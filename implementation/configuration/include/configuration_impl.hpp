@@ -8,7 +8,7 @@
 
 #include <map>
 #include <memory>
-#include <mutex>
+#include <boost/thread.hpp>
 #include <vector>
 #include <unordered_set>
 #include <list>
@@ -352,9 +352,9 @@ private:
     std::shared_ptr<policy> find_client_id_policy(client_t _client) const;
 
 private:
-    std::mutex mutex_;
-    mutable std::mutex ids_mutex_;
-    mutable std::mutex uid_to_clients_mutex_;
+    boost::mutex mutex_;
+    mutable boost::mutex ids_mutex_;
+    mutable boost::mutex uid_to_clients_mutex_;
 
     bool is_loaded_;
     bool is_logging_loaded_;
@@ -380,7 +380,7 @@ protected:
                 size_t, size_t, std::map<plugin_type_e, std::set<std::string>>, int>> applications_;
     std::set<client_t> client_identifiers_;
 
-    mutable std::mutex services_mutex_;
+    mutable boost::mutex services_mutex_;
     std::map<service_t,
         std::map<instance_t,
             std::shared_ptr<service> > > services_;
@@ -471,8 +471,8 @@ protected:
     std::map<std::pair<uint16_t, uint16_t>, std::shared_ptr<policy>> policies_;
     std::vector<std::shared_ptr<policy> > any_client_policies_;
 
-    mutable std::mutex  policies_mutex_;
-    mutable std::mutex  any_client_policies_mutex_;
+    mutable boost::mutex  policies_mutex_;
+    mutable boost::mutex  any_client_policies_mutex_;
     std::map<client_t, std::pair<uint32_t, uint32_t> > ids_;
     std::map<std::pair<uint32_t, uint32_t>, std::set<client_t> > uid_to_clients_;
 
@@ -506,7 +506,7 @@ protected:
     uint32_t tcp_restart_aborts_max_;
     uint32_t tcp_connect_time_max_;
 
-    mutable std::mutex offer_acceptance_required_ips_mutex_;
+    mutable boost::mutex offer_acceptance_required_ips_mutex_;
     std::map<boost::asio::ip::address, std::string> offer_acceptance_required_ips_;
 
     bool has_issued_methods_warning_;
@@ -514,13 +514,13 @@ protected:
 
     std::uint32_t udp_receive_buffer_size_;
 
-    mutable std::mutex service_interface_whitelist_mutex_;
+    mutable boost::mutex service_interface_whitelist_mutex_;
     std::set<std::pair<service_t, service_t>> service_interface_whitelist_;
 
-    mutable std::mutex uid_whitelist_mutex_;
+    mutable boost::mutex uid_whitelist_mutex_;
     ranges_t uid_whitelist_;
 
-    mutable std::mutex routing_credentials_mutex_;
+    mutable boost::mutex routing_credentials_mutex_;
     std::pair<uint32_t, uint32_t> routing_credentials_;
 
     std::uint32_t shutdown_timeout_;

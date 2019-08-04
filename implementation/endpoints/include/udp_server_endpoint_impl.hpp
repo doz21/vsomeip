@@ -71,14 +71,14 @@ private:
     socket_type socket_;
     endpoint_type remote_;
 
-    mutable std::mutex default_targets_mutex_;
+    mutable boost::mutex default_targets_mutex_;
     std::map<service_t, endpoint_type> default_targets_;
-    mutable std::mutex joined_mutex_;
+    mutable boost::mutex joined_mutex_;
     std::map<std::string, bool> joined_;
     std::atomic<bool> joined_group_;
 
     message_buffer_t recv_buffer_;
-    mutable std::mutex socket_mutex_;
+    mutable boost::mutex socket_mutex_;
 
     const std::uint16_t local_port_;
 };

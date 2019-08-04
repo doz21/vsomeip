@@ -7,9 +7,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <unistd.h>
-#include <thread>
-#include <condition_variable>
-#include <mutex>
+#include <boost/thread.hpp>
 #include <cstring>
 #include <iostream>
 
@@ -28,8 +26,8 @@ static std::shared_ptr<vsomeip::application> its_application;
 static vsomeip::routing_state_e routing_state = vsomeip::routing_state_e::RS_RUNNING;
 static bool stop_application = false;
 static bool stop_sighandler = false;
-static std::condition_variable_any sighandler_condition;
-static std::recursive_mutex sighandler_mutex;
+static boost::condition_variable_any sighandler_condition;
+static boost::recursive_mutex sighandler_mutex;
 #endif
 
 #ifndef _WIN32
@@ -52,7 +50,7 @@ void vsomeipd_stop(int _signal) {
     if (_signal == SIGUSR2) {
         routing_state = vsomeip::routing_state_e::RS_RESUMED;
     }
-    std::unique_lock<std::recursive_mutex> its_lock(sighandler_mutex);
+    boost::unique_lock<boost::recursive_mutex> its_lock(sighandler_mutex);
     sighandler_condition.notify_one();
 }
 #endif
@@ -78,7 +76,7 @@ int vsomeipd_process(bool _is_quiet) {
     // Create the application object
     its_application = its_runtime->create_application(VSOMEIP_ROUTING);
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    std::thread sighandler_thread([]() {
+    boost::thread sighandler_thread([]() {
         // Unblock signals for this thread only
         sigset_t handler_mask;
         sigemptyset(&handler_mask);
@@ -97,7 +95,7 @@ int vsomeipd_process(bool _is_quiet) {
         signal(SIGUSR2, vsomeipd_stop);
 
         while (!stop_sighandler) {
-            std::unique_lock<std::recursive_mutex> its_lock(sighandler_mutex);
+            boost::unique_lock<boost::recursive_mutex> its_lock(sighandler_mutex);
             sighandler_condition.wait(its_lock);
 
             if (stop_application) {
@@ -135,7 +133,7 @@ int vsomeipd_process(bool _is_quiet) {
         VSOMEIP_ERROR << "vsomeipd has not been configured as routing - abort";
     }
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    std::unique_lock<std::recursive_mutex> its_lock(sighandler_mutex);
+    boost::unique_lock<boost::recursive_mutex> its_lock(sighandler_mutex);
     stop_sighandler = true;
     sighandler_condition.notify_one();
     sighandler_thread.join();

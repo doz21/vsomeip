@@ -36,7 +36,7 @@ runtime_impl::~runtime_impl() {
 
 std::shared_ptr<application> runtime_impl::create_application(
         const std::string &_name) {
-    std::lock_guard<std::mutex> its_lock(applications_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(applications_mutex_);
     std::string its_name_ = _name;
     auto found_application = applications_.find(_name);
     if( found_application != applications_.end()) {
@@ -112,7 +112,7 @@ std::shared_ptr<payload> runtime_impl::create_payload(
 
 std::shared_ptr<application> runtime_impl::get_application(
         const std::string &_name) const {
-    std::lock_guard<std::mutex> its_lock(applications_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(applications_mutex_);
     auto found_application = applications_.find(_name);
     if(found_application != applications_.end())
         return found_application->second.lock();
@@ -121,7 +121,7 @@ std::shared_ptr<application> runtime_impl::get_application(
 
 void runtime_impl::remove_application(
         const std::string &_name) {
-    std::lock_guard<std::mutex> its_lock(applications_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(applications_mutex_);
     auto found_application = applications_.find(_name);
     if(found_application != applications_.end()) {
         applications_.erase(_name);

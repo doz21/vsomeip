@@ -8,10 +8,10 @@
 
 #include <map>
 #include <memory>
-#include <mutex>
 #include <set>
 #include <atomic>
 
+#include <boost/thread.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -131,7 +131,7 @@ private:
 
 private:
     routing_manager *routing_;
-    mutable std::mutex mutex_;
+    mutable boost::mutex mutex_;
     std::shared_ptr<message> message_;
 
     std::atomic<bool> is_field_;
@@ -142,13 +142,13 @@ private:
     std::atomic<bool> change_resets_cycle_;
     std::atomic<bool> is_updating_on_change_;
 
-    mutable std::mutex eventgroups_mutex_;
+    mutable boost::mutex eventgroups_mutex_;
     std::map<eventgroup_t, std::set<client_t>> eventgroups_;
 
     std::atomic<bool> is_set_;
     std::atomic<bool> is_provided_;
 
-    std::mutex refs_mutex_;
+    boost::mutex refs_mutex_;
     std::map<client_t, std::map<bool, uint32_t>> refs_;
 
     std::atomic<bool> is_shadow_;

@@ -10,7 +10,7 @@
 #include <dlt/dlt.h>
 #endif
 
-#include <mutex>
+#include <boost/thread.hpp>
 #include <vector>
 #include <map>
 
@@ -66,11 +66,11 @@ private:
     bool is_initialized_;
 
     std::map<std::string, std::shared_ptr<channel_impl>> channels_;
-    mutable std::mutex channels_mutex_;
+    mutable boost::mutex channels_mutex_;
 
 #ifdef USE_DLT
 	std::map<std::string, std::shared_ptr<DltContext>> contexts_;
-    mutable std::mutex contexts_mutex_;
+    mutable boost::mutex contexts_mutex_;
 #endif
 
 };

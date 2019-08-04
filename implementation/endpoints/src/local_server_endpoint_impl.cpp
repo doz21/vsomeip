@@ -92,7 +92,7 @@ bool local_server_endpoint_impl::is_local() const {
 }
 
 void local_server_endpoint_impl::start() {
-    std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(acceptor_mutex_);
     if (acceptor_.is_open()) {
         connection::ptr new_connection = connection::create(
                 std::dynamic_pointer_cast<local_server_endpoint_impl>(
@@ -101,7 +101,7 @@ void local_server_endpoint_impl::start() {
                         service_);
 
         {
-            std::unique_lock<std::mutex> its_lock(new_connection->get_socket_lock());
+            boost::unique_lock<boost::mutex> its_lock(new_connection->get_socket_lock());
             acceptor_.async_accept(
                 new_connection->get_socket(),
                 std::bind(
@@ -120,14 +120,14 @@ void local_server_endpoint_impl::start() {
 void local_server_endpoint_impl::stop() {
     server_endpoint_impl::stop();
     {
-        std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(acceptor_mutex_);
         if (acceptor_.is_open()) {
             boost::system::error_code its_error;
             acceptor_.close(its_error);
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(connections_mutex_);
         for (const auto &c : connections_) {
             c.second->stop();
         }
@@ -135,7 +135,7 @@ void local_server_endpoint_impl::stop() {
     }
 #ifndef _WIN32
     {
-        std::lock_guard<std::mutex> its_lock(client_connections_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(client_connections_mutex_);
         client_connections_.clear();
     }
 #endif
@@ -155,7 +155,7 @@ void local_server_endpoint_impl::send_queued(
         const queue_iterator_type _queue_iterator) {
     connection::ptr its_connection;
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(connections_mutex_);
         auto connection_iterator = connections_.find(_queue_iterator->first);
         if (connection_iterator != connections_.end()) {
             connection_iterator->second->send_queued(_queue_iterator);
@@ -191,7 +191,7 @@ bool local_server_endpoint_impl::get_default_target(
 void local_server_endpoint_impl::remove_connection(
         local_server_endpoint_impl::connection *_connection) {
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(connections_mutex_);
         for (auto it = connections_.begin(); it != connections_.end();) {
             if (it->second.get() == _connection) {
                 it = connections_.erase(it);
@@ -204,7 +204,7 @@ void local_server_endpoint_impl::remove_connection(
 
 #ifndef _WIN32
     {
-        std::lock_guard<std::mutex> its_lock(client_connections_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(client_connections_mutex_);
         for (auto it = client_connections_.begin(); it != client_connections_.end();) {
             if (it->second.get() == _connection) {
                 it = client_connections_.erase(it);
@@ -247,14 +247,14 @@ void local_server_endpoint_impl::accept_cbk(
         client_t client = 0;
         if (its_host) {
             if (its_host->get_configuration()->is_security_enabled()) {
-                std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
+                boost::unique_lock<boost::mutex> its_socket_lock(_connection->get_socket_lock());
                 socket_type &new_connection_socket = _connection->get_socket();
                 uid_t uid(0xffffffff);
                 gid_t gid(0xffffffff);
                 client = credentials::receive_credentials(
                      new_connection_socket.native_handle(), uid, gid);
 
-                std::lock_guard<std::mutex> its_client_connection_lock(client_connections_mutex_);
+                boost::lock_guard<boost::mutex> its_client_connection_lock(client_connections_mutex_);
                 auto found_client = client_connections_.find(client);
                 if (found_client != client_connections_.end()) {
                     VSOMEIP_WARNING << std::hex << "vSomeIP Security: Rejecting new connection with client ID 0x" << client
@@ -295,19 +295,19 @@ void local_server_endpoint_impl::accept_cbk(
         boost::system::error_code its_error;
         endpoint_type remote;
         {
-            std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
+            boost::unique_lock<boost::mutex> its_socket_lock(_connection->get_socket_lock());
             socket_type &new_connection_socket = _connection->get_socket();
             remote = new_connection_socket.remote_endpoint(its_error);
         }
         if (!its_error) {
             {
                 {
-                    std::lock_guard<std::mutex> its_lock(connections_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(connections_mutex_);
                     connections_[remote] = _connection;
                 }
 #ifndef _WIN32
                 {
-                    std::lock_guard<std::mutex> its_lock(client_connections_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(client_connections_mutex_);
                     client_connections_[client] = _connection;
                 }
 #endif
@@ -357,13 +357,13 @@ local_server_endpoint_impl::connection::get_socket() {
     return socket_;
 }
 
-std::unique_lock<std::mutex>
+boost::unique_lock<boost::mutex>
 local_server_endpoint_impl::connection::get_socket_lock() {
-    return std::unique_lock<std::mutex>(socket_mutex_);
+    return boost::unique_lock<boost::mutex>(socket_mutex_);
 }
 
 void local_server_endpoint_impl::connection::start() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     if (socket_.is_open()) {
         const std::size_t its_capacity(recv_buffer_.capacity());
         size_t buffer_size = its_capacity - recv_buffer_size_;
@@ -406,7 +406,7 @@ void local_server_endpoint_impl::connection::start() {
 }
 
 void local_server_endpoint_impl::connection::stop() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     if (socket_.is_open()) {
 #ifndef _WIN32
         if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
@@ -443,7 +443,7 @@ void local_server_endpoint_impl::connection::send_queued(
         VSOMEIP_INFO << msg.str();
 #endif
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         boost::asio::async_write(
             socket_,
             boost::asio::buffer(*its_buffer),
@@ -534,7 +534,7 @@ void local_server_endpoint_impl::connection::receive_cbk(
                     }
                     if (its_command_size && max_message_size_ != MESSAGE_SIZE_UNLIMITED
                             && its_command_size > max_message_size_) {
-                        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
                         VSOMEIP_ERROR << "Received a local message which exceeds "
                               << "maximum message size (" << std::dec << its_command_size
                               << ") aborting! local: " << get_path_local() << " remote: "
@@ -746,10 +746,10 @@ local_server_endpoint_impl::connection::get_recv_buffer_capacity() const {
 }
 
 void local_server_endpoint_impl::print_status() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     connections_t its_connections;
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(connections_mutex_);
         its_connections = connections_;
     }
 #ifndef _WIN32
@@ -770,7 +770,7 @@ void local_server_endpoint_impl::print_status() {
         std::size_t its_queue_size(0);
         std::size_t its_recv_size(0);
         {
-            std::unique_lock<std::mutex> c_s_lock(c.second->get_socket_lock());
+            boost::unique_lock<boost::mutex> c_s_lock(c.second->get_socket_lock());
             its_recv_size = c.second->get_recv_buffer_capacity();
         }
         auto found_queue = queues_.find(c.first);

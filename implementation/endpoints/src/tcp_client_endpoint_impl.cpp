@@ -84,7 +84,7 @@ void tcp_client_endpoint_impl::restart(bool _force) {
     state_ = cei_state_e::CONNECTING;
     std::string address_port_local;
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         address_port_local = get_address_port_local();
         shutdown_and_close_socket_unlocked(true);
         recv_buffer_ = std::make_shared<message_buffer_t>(recv_buffer_size_initial_, 0);
@@ -92,7 +92,7 @@ void tcp_client_endpoint_impl::restart(bool _force) {
     was_not_connected_ = true;
     reconnect_counter_ = 0;
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         for (const auto&m : queue_) {
             const service_t its_service = VSOMEIP_BYTES_TO_WORD(
                     (*m)[VSOMEIP_SERVICE_POS_MIN],
@@ -123,7 +123,7 @@ void tcp_client_endpoint_impl::restart(bool _force) {
 }
 
 void tcp_client_endpoint_impl::connect() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
 
@@ -202,7 +202,7 @@ void tcp_client_endpoint_impl::connect() {
 void tcp_client_endpoint_impl::receive() {
     message_buffer_ptr_t its_recv_buffer;
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         its_recv_buffer = recv_buffer_;
     }
     receive(its_recv_buffer, 0, 0);
@@ -211,7 +211,7 @@ void tcp_client_endpoint_impl::receive() {
 void tcp_client_endpoint_impl::receive(message_buffer_ptr_t  _recv_buffer,
              std::size_t _recv_buffer_size,
              std::size_t _missing_capacity) {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     if(socket_->is_open()) {
         const std::size_t its_capacity(_recv_buffer->capacity());
         size_t buffer_size = its_capacity - _recv_buffer_size;
@@ -303,7 +303,7 @@ void tcp_client_endpoint_impl::send_queued() {
     VSOMEIP_INFO << msg.str();
 #endif
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         if (socket_->is_open()) {
             boost::asio::async_write(
                 *socket_,
@@ -337,7 +337,7 @@ bool tcp_client_endpoint_impl::get_remote_address(
 }
 
 void tcp_client_endpoint_impl::set_local_port() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     if (socket_->is_open()) {
         endpoint_type its_endpoint = socket_->local_endpoint(its_error);
@@ -442,7 +442,7 @@ void tcp_client_endpoint_impl::receive_cbk(
             << (int) (_recv_buffer)[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
-    std::unique_lock<std::mutex> its_lock(socket_mutex_);
+    boost::unique_lock<boost::mutex> its_lock(socket_mutex_);
     std::shared_ptr<endpoint_host> its_host = host_.lock();
     if (its_host) {
         std::uint32_t its_missing_capacity(0);
@@ -734,11 +734,11 @@ void tcp_client_endpoint_impl::handle_recv_buffer_exception(
     VSOMEIP_ERROR << its_message.str();
     _recv_buffer->clear();
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         sending_blocked_ = true;
     }
     {
-        std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(connect_timer_mutex_);
         boost::system::error_code ec;
         connect_timer_.cancel(ec);
     }
@@ -754,13 +754,13 @@ void tcp_client_endpoint_impl::print_status() {
     std::size_t its_queue_size(0);
     std::size_t its_receive_buffer_capacity(0);
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         its_queue_size = queue_.size();
         its_data_size = queue_size_;
     }
     std::string local;
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         local = get_address_port_local();
         its_receive_buffer_capacity = recv_buffer_->capacity();
     }
@@ -783,7 +783,7 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
                                         message_buffer_ptr_t _sent_msg) {
     (void)_bytes;
     if (!_error) {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         if (queue_.size() > 0) {
             queue_size_ -= queue_.front()->size();
             queue_.pop_front();

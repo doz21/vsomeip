@@ -6,7 +6,7 @@
 #ifndef VSOMEIP_E2E_PROFILE01_PROTECTOR_HPP
 #define VSOMEIP_E2E_PROFILE01_PROTECTOR_HPP
 
-#include <mutex>
+#include <boost/thread.hpp>
 #include "../profile01/profile_01.hpp"
 #include "../profile_interface/protector.hpp"
 
@@ -36,7 +36,7 @@ class protector final : public e2e::profile_interface::protector {
   private:
     profile_config config_;
     uint8_t counter_;
-    std::mutex protect_mutex_;
+    boost::mutex protect_mutex_;
 };
 
 } // namespace profile01

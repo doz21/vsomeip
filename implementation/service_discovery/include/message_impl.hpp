@@ -9,9 +9,10 @@
 #include <memory>
 #include <vector>
 #include <atomic>
-#include <mutex>
+#include <boost/thread.hpp>
 
 #include <vsomeip/message.hpp>
+
 
 #include "../include/primitive_types.hpp"
 #include "../../message/include/message_base_impl.hpp"
@@ -93,7 +94,7 @@ public:
     void decrease_number_required_acks(std::uint8_t _amount = 1);
     void increase_number_contained_acks();
     bool all_required_acks_contained() const;
-    std::unique_lock<std::mutex> get_message_lock();
+    boost::unique_lock<boost::mutex> get_message_lock();
 
     void forced_initial_events_add(forced_initial_events_t _entry);
     const std::vector<forced_initial_events_t> forced_initial_events_get();
@@ -113,9 +114,9 @@ private:
     options_t options_;
     std::atomic<std::uint8_t> number_required_acks_;
     std::atomic<std::uint8_t> number_contained_acks_;
-    std::mutex message_mutex_;
+    boost::mutex message_mutex_;
 
-    std::mutex forced_initial_events_mutex_;
+    boost::mutex forced_initial_events_mutex_;
     std::vector<forced_initial_events_t> forced_initial_events_info_;
 
     std::atomic<bool> initial_events_required_;

@@ -137,7 +137,7 @@ uint32_t endpoint_impl<Protocol>::get_use_count() {
 
 template<typename Protocol>
 void endpoint_impl<Protocol>::register_error_handler(error_handler_t _error_handler) {
-    std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(error_handler_mutex_);
     this->error_handler_ = _error_handler;
 }
 

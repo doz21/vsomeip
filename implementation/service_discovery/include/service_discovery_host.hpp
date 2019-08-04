@@ -8,7 +8,7 @@
 
 #include <map>
 #include <memory>
-#include <chrono>
+#include <boost/chrono.hpp>
 
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/io_service.hpp>

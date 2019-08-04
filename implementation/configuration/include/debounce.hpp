@@ -7,6 +7,7 @@
 #define VSOMEIP_CFG_DEBOUNCE_HPP
 
 #include <map>
+#include <chrono>
 
 namespace vsomeip {
 namespace cfg {

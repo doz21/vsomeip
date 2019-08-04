@@ -17,7 +17,7 @@ namespace profile_custom {
 
 void profile_custom_checker::check(const e2e_buffer &_buffer,
                                    e2e::profile_interface::generic_check_status &_generic_check_status) {
-    std::lock_guard<std::mutex> lock(check_mutex_);
+    boost::lock_guard<boost::mutex> lock(check_mutex_);
     _generic_check_status = e2e::profile_interface::generic_check_status::E2E_ERROR;
 
    if (profile_custom::is_buffer_length_valid(config_, _buffer)) {

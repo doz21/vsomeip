@@ -7,10 +7,12 @@
 #define VSOMEIP_PLUGIN_MANAGER_HPP
 
 #include <map>
-#include <chrono>
-#include <mutex>
+#include <boost/chrono.hpp>
 #include <set>
 
+#include <boost/dll/shared_library.hpp>
+
+#include <boost/thread.hpp>
 #include <vsomeip/constants.hpp>
 #include <vsomeip/export.hpp>
 #include <vsomeip/plugin.hpp>
@@ -38,15 +40,15 @@ public:
 private:
         void add_plugin(const std::shared_ptr<plugin> &_plugin, const std::string _name);
 
-        void * load_library(const std::string &_path);
-        void * load_symbol(void * _handle, const std::string &_symbol);
+        //boost::dll::shared_library* load_library(const std::string &_path);
+        //void * load_symbol(void * _handle, const std::string &_symbol);
 
         bool plugins_loaded_;
-        std::mutex loader_mutex_;
+        boost::mutex loader_mutex_;
 
         std::map<plugin_type_e, std::map<std::string, std::shared_ptr<plugin> > > plugins_;
-        std::map<plugin_type_e, std::map<std::string, void*> > handles_;
-        std::recursive_mutex plugins_mutex_;
+        std::map<plugin_type_e, std::map<std::string, std::shared_ptr<boost::dll::shared_library> > > handles_;
+        boost::recursive_mutex plugins_mutex_;
 
         static std::shared_ptr<plugin_manager> the_plugin_manager__;
 };

@@ -7,14 +7,14 @@
 #define VSOMEIP_CRITICALSECTION_HPP
 
 #include <memory>
-#include <mutex>
+#include <boost/thread.hpp>
 
 namespace vsomeip {
 
 #ifdef _WIN32
 
     // Windows: CriticalSection uses win32 CRITICAL_SECTION.
-    // Interface mimics std::mutex so we can use it in
+    // Interface mimics boost::mutex so we can use it in
     // conjunction with std::unique_lock.
     class CriticalSection final {
     public:
@@ -36,8 +36,8 @@ namespace vsomeip {
 
 #else
 
-    // Linux: CriticalSection is a type alias for std::mutex.
-    using CriticalSection = std::mutex;
+    // Linux: CriticalSection is a type alias for boost::mutex.
+    using CriticalSection = boost::mutex;
 
 #endif
 
