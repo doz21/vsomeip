@@ -96,8 +96,8 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
 		 cmsg != NULL;
 	  	 cmsg = CMSG_NXTHDR(&msg, cmsg))
 	{
-	  if ((cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO) && (cmsg->cmsg_level != IPPROTO_IPV6 || cmsg->cmsg_type != IPV6_PKTINFO))
-	  	continue;
+	    if ((cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO) && (cmsg->cmsg_level != IPPROTO_IPV6 || cmsg->cmsg_type != IPV6_PKTINFO))
+	  	  continue;
 
 		if (cmsg->cmsg_level == IPPROTO_IP)
 		{
