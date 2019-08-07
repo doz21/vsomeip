@@ -96,14 +96,28 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
 		 cmsg != NULL;
 	  	 cmsg = CMSG_NXTHDR(&msg, cmsg))
 	{
-	  if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO)
+	  if ((cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO) && (cmsg->cmsg_level != IPPROTO_IPV6 || cmsg->cmsg_type != IPV6_PKTINFO))
 	  	continue;
 
-      struct in_pktinfo *pi = (struct in_pktinfo *) CMSG_DATA(cmsg);
-	  if (pi)
-	  {
-	    da = boost::asio::ip::address_v4(ntohl(pi->ipi_addr.s_addr));
-	  } 
+		if (cmsg->cmsg_level == IPPROTO_IP)
+		{
+		  struct in_pktinfo *pi = (struct in_pktinfo *) CMSG_DATA(cmsg);
+		  if (pi)
+		  {
+			da = boost::asio::ip::address_v4(ntohl(pi->ipi_addr.s_addr));
+		  }
+		}
+		else if (cmsg->cmsg_level == IPPROTO_IPV6)
+		{
+			struct in6_pktinfo *pi = (struct in6_pktinfo *) CMSG_DATA(cmsg);
+			if (pi)
+			{
+				char str[INET6_ADDRSTRLEN];
+				inet_ntop(AF_INET6, &( pi->ipi6_addr), str, INET6_ADDRSTRLEN);
+				
+				da = boost::asio::ip::address_v6(boost::asio::ip::address_v6::from_string(str));
+			}
+		}
 	}      
   }
   return result;
