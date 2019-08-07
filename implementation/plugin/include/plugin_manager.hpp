@@ -40,9 +40,6 @@ public:
 private:
         void add_plugin(const std::shared_ptr<plugin> &_plugin, const std::string _name);
 
-        //boost::dll::shared_library* load_library(const std::string &_path);
-        //void * load_symbol(void * _handle, const std::string &_symbol);
-
         bool plugins_loaded_;
         boost::mutex loader_mutex_;
 
