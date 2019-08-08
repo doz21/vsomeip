@@ -6,7 +6,7 @@
 #ifndef __EXPORT__HPP__
 #define __EXPORT__HPP__
 
-#if _WIN32
+#if !defined(__GNUC__)
     #define VSOMEIP_EXPORT __declspec(dllexport)
     #define VSOMEIP_EXPORT_CLASS_EXPLICIT
 
