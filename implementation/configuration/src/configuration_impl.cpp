@@ -420,10 +420,7 @@ void configuration_impl::read_data(const std::set<std::string> &_input,
                     boost::property_tree::json_parser::read_json(i, its_tree);
                     _elements.push_back({ i, its_tree });
                 }
-                catch (boost::property_tree::json_parser_error &e) {
-    #ifdef _WIN32
-                    e; // silence MSVC warning C4101
-    #endif
+                catch (const boost::property_tree::json_parser_error&) {
                     _failed.insert(i);
                 }
             }

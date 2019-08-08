@@ -2034,10 +2034,7 @@ void service_discovery_impl::process_eventgroupentry(
             std::shared_ptr < option_impl > its_option;
             try {
                 its_option = _options.at(its_index);
-            } catch(const std::out_of_range& e) {
-#ifdef _WIN32
-                e; // silence MSVC warining C4101
-#endif
+            } catch(const std::out_of_range& ) {
                 boost::system::error_code ec;
                 VSOMEIP_ERROR << "Fewer options in SD message than "
                                  "referenced in EventGroup entry for "
