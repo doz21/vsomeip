@@ -5,6 +5,7 @@
 
 #include <fstream>
 
+#include <boost/version.hpp>
 #include <boost/log/core.hpp>
 #include <boost/log/expressions.hpp>
 #include <boost/log/sources/logger.hpp>
