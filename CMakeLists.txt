@@ -58,6 +58,8 @@ if(NOT CMAKE_BUILD_TYPE)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+set(CMAKE_CXX_FLAGS_RELEASE "-s -Os -DNDEBUG")
+
 # OS
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(OS "LINUX")
