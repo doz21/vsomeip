@@ -8,7 +8,7 @@
 
 #include <map>
 #include <memory>
-#include <mutex>
+#include <boost/thread.hpp>
 #include <atomic>
 
 #include <boost/asio/io_service.hpp>
@@ -84,11 +84,11 @@ protected:
 
     std::atomic<bool> sending_blocked_;
 
-    std::mutex local_mutex_;
+    boost::mutex local_mutex_;
     endpoint_type local_;
 
     error_handler_t error_handler_;
-    std::mutex error_handler_mutex_;
+    boost::mutex error_handler_mutex_;
 
     const configuration::endpoint_queue_limit_t queue_limit_;
 };

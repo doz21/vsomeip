@@ -51,13 +51,13 @@ void local_client_endpoint_impl::restart(bool _force) {
     }
     state_ = cei_state_e::CONNECTING;
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         sending_blocked_ = false;
         queue_.clear();
         queue_size_ = 0;
     }
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         shutdown_and_close_socket_unlocked(true);
     }
     was_not_connected_ = true;
@@ -71,11 +71,11 @@ void local_client_endpoint_impl::start() {
 
 void local_client_endpoint_impl::stop() {
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         sending_blocked_ = true;
     }
     {
-        std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(connect_timer_mutex_);
         boost::system::error_code ec;
         connect_timer_.cancel(ec);
     }
@@ -83,7 +83,7 @@ void local_client_endpoint_impl::stop() {
 
     bool is_open(false);
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         is_open = socket_->is_open();
     }
     if (is_open) {
@@ -97,7 +97,7 @@ void local_client_endpoint_impl::stop() {
             if (send_queue_empty) {
                 break;
             } else {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
                 times_slept++;
             }
         }
@@ -108,7 +108,7 @@ void local_client_endpoint_impl::stop() {
 void local_client_endpoint_impl::connect() {
     boost::system::error_code its_connect_error;
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         boost::system::error_code its_error;
         socket_->open(remote_.protocol(), its_error);
 
@@ -157,7 +157,7 @@ void local_client_endpoint_impl::connect() {
 }
 
 void local_client_endpoint_impl::receive() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     if (socket_->is_open()) {
         socket_->async_receive(
             boost::asio::buffer(recv_buffer_),
@@ -201,7 +201,7 @@ VSOMEIP_INFO << msg.str();
     bufs.push_back(boost::asio::buffer(its_end_tag));
 
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         boost::asio::async_write(
             *socket_,
             bufs,
@@ -239,7 +239,7 @@ void local_client_endpoint_impl::receive_cbk(
         }
         error_handler_t handler;
         {
-            std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(error_handler_mutex_);
             handler = error_handler_;
         }
         if (handler)
@@ -272,7 +272,7 @@ void local_client_endpoint_impl::print_status() {
     std::size_t its_data_size(0);
     std::size_t its_queue_size(0);
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         its_queue_size = queue_.size();
         its_data_size = queue_size_;
     }
@@ -298,7 +298,7 @@ std::uint32_t local_client_endpoint_impl::get_max_allowed_reconnects() const {
 bool local_client_endpoint_impl::send(const std::vector<byte_t>& _cmd_header,
                                       const byte_t *_data, uint32_t _size,
                                       bool _flush) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     bool ret(true);
     const bool queue_size_zero_on_entry(queue_.empty());
 
@@ -329,7 +329,7 @@ void local_client_endpoint_impl::max_allowed_reconnects_reached() {
             << get_remote_information();
     error_handler_t handler;
     {
-        std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(error_handler_mutex_);
         handler = error_handler_;
     }
     if (handler)

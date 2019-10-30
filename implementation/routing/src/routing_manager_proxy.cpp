@@ -5,7 +5,7 @@
 
 #include <climits>
 #include <iomanip>
-#include <mutex>
+#include <boost/thread.hpp>
 #include <unordered_set>
 #include <future>
 #include <forward_list>
@@ -57,7 +57,7 @@ routing_manager_proxy::~routing_manager_proxy() {
 void routing_manager_proxy::init() {
     routing_manager_base::init();
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         sender_ = create_local(VSOMEIP_ROUTING_CLIENT);
     }
 
@@ -76,7 +76,7 @@ void routing_manager_proxy::start() {
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (!sender_) {
             // application has been stopped and started again
             sender_ = create_local(VSOMEIP_ROUTING_CLIENT);
@@ -88,15 +88,15 @@ void routing_manager_proxy::start() {
 }
 
 void routing_manager_proxy::stop() {
-    std::unique_lock<std::mutex> its_lock(state_mutex_);
+    boost::unique_lock<boost::mutex> its_lock(state_mutex_);
     if (state_ == inner_state_type_e::ST_REGISTERING) {
         register_application_timer_.cancel();
     }
 
-    const std::chrono::milliseconds its_timeout(configuration_->get_shutdown_timeout());
+    const boost::chrono::milliseconds its_timeout(configuration_->get_shutdown_timeout());
     while (state_ == inner_state_type_e::ST_REGISTERING) {
-        std::cv_status status = state_condition_.wait_for(its_lock, its_timeout);
-        if (status == std::cv_status::timeout) {
+        boost::cv_status status = state_condition_.wait_for(its_lock, its_timeout);
+        if (status == boost::cv_status::timeout) {
             VSOMEIP_WARNING << std::hex << client_ << " registering timeout on stop";
             break;
         }
@@ -106,8 +106,8 @@ void routing_manager_proxy::stop() {
         deregister_application();
         // Waiting de-register acknowledge to synchronize shutdown
         while (state_ == inner_state_type_e::ST_REGISTERED) {
-            std::cv_status status = state_condition_.wait_for(its_lock, its_timeout);
-            if (status == std::cv_status::timeout) {
+            boost::cv_status status = state_condition_.wait_for(its_lock, its_timeout);
+             if (status == boost::cv_status::timeout) {
                 VSOMEIP_WARNING << std::hex << client_ << " couldn't deregister application - timeout";
                 break;
             }
@@ -117,7 +117,7 @@ void routing_manager_proxy::stop() {
     its_lock.unlock();
 
     {
-        std::lock_guard<std::mutex> its_lock(request_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(request_timer_mutex_);
         request_debounce_timer_.cancel();
     }
 
@@ -127,7 +127,7 @@ void routing_manager_proxy::stop() {
     receiver_ = nullptr;
 
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->stop();
         }
@@ -164,7 +164,7 @@ bool routing_manager_proxy::offer_service(client_t _client, service_t _service,
                 << "routing_manager_base::offer_service returned false";
     }
     {
-        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
         if (state_ == inner_state_type_e::ST_REGISTERED) {
             send_offer_service(_client, _service, _instance, _major, _minor);
         }
@@ -197,7 +197,7 @@ void routing_manager_proxy::send_offer_service(client_t _client,
             sizeof(_minor));
 
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_command, sizeof(its_command));
         }
@@ -217,7 +217,7 @@ void routing_manager_proxy::stop_offer_service(client_t _client,
     clear_service_info(_service, _instance, false);
 
     {
-        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
         if (state_ == inner_state_type_e::ST_REGISTERED) {
             byte_t its_command[VSOMEIP_STOP_OFFER_SERVICE_COMMAND_SIZE];
             uint32_t its_size = VSOMEIP_STOP_OFFER_SERVICE_COMMAND_SIZE
@@ -237,7 +237,7 @@ void routing_manager_proxy::stop_offer_service(client_t _client,
                     sizeof(_minor));
 
             {
-                std::lock_guard<std::mutex> its_lock(sender_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
                 if (sender_) {
                     sender_->send(its_command, sizeof(its_command));
                 }
@@ -261,7 +261,7 @@ void routing_manager_proxy::request_service(client_t _client,
     routing_manager_base::request_service(_client, _service, _instance, _major,
             _minor, _use_exclusive_proxy);
     {
-        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
         size_t request_debouncing_time = configuration_->get_request_debouncing(host_->get_name());
         service_data_t request = { _service, _instance, _major, _minor, _use_exclusive_proxy };
         if (!request_debouncing_time) {
@@ -273,7 +273,7 @@ void routing_manager_proxy::request_service(client_t _client,
             requests_.insert(request);
         } else {
             requests_to_debounce_.insert(request);
-            std::lock_guard<std::mutex> its_lock(request_timer_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(request_timer_mutex_);
             if (!request_debounce_timer_running_) {
                 request_debounce_timer_running_ = true;
                 request_debounce_timer_.expires_from_now(std::chrono::milliseconds(request_debouncing_time));
@@ -291,7 +291,7 @@ void routing_manager_proxy::release_service(client_t _client,
         service_t _service, instance_t _instance) {
     routing_manager_base::release_service(_client, _service, _instance);
     {
-        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
         remove_pending_subscription(_service, _instance, 0xFFFF, ANY_EVENT);
 
         bool pending(false);
@@ -343,7 +343,7 @@ void routing_manager_proxy::register_event(client_t _client,
     };
     bool is_first(false);
     {
-        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
         is_first = pending_event_registrations_.find(registration)
                                         == pending_event_registrations_.end();
         if (is_first) {
@@ -358,7 +358,7 @@ void routing_manager_proxy::register_event(client_t _client,
                         _is_provided);
     }
     {
-        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
         if (state_ == inner_state_type_e::ST_REGISTERED && is_first) {
             send_register_event(client_, _service, _instance,
                     _event, _eventgroups, _is_field, _is_provided);
@@ -383,7 +383,7 @@ void routing_manager_proxy::unregister_event(client_t _client,
             _event, _is_provided);
 
     {
-        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
         if (state_ == inner_state_type_e::ST_REGISTERED) {
             byte_t its_command[VSOMEIP_UNREGISTER_EVENT_COMMAND_SIZE];
             uint32_t its_size = VSOMEIP_UNREGISTER_EVENT_COMMAND_SIZE
@@ -404,7 +404,7 @@ void routing_manager_proxy::unregister_event(client_t _client,
                         = static_cast<byte_t>(_is_provided);
 
             {
-                std::lock_guard<std::mutex> its_lock(sender_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
                 if (sender_) {
                     sender_->send(its_command, sizeof(its_command));
                 }
@@ -458,7 +458,7 @@ void routing_manager_proxy::subscribe(client_t _client, service_t _service,
             }
         }
 
-        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
         if (state_ == inner_state_type_e::ST_REGISTERED && is_available(_service, _instance, _major)) {
             send_subscribe(_client, _service, _instance, _eventgroup, _major,
                     _event, _subscription_type);
@@ -502,7 +502,7 @@ void routing_manager_proxy::send_subscribe(client_t _client, service_t _service,
         auto its_target = find_or_create_local(target_client);
         its_target->send(its_command, sizeof(its_command));
     } else {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_command, sizeof(its_command));
         }
@@ -544,7 +544,7 @@ void routing_manager_proxy::send_subscribe_nack(client_t _subscriber,
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_command, sizeof(its_command));
         }
@@ -586,7 +586,7 @@ void routing_manager_proxy::send_subscribe_ack(client_t _subscriber,
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_command, sizeof(its_command));
         }
@@ -597,7 +597,7 @@ void routing_manager_proxy::unsubscribe(client_t _client, service_t _service,
         instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
     (void)_client;
     {
-        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
         remove_pending_subscription(_service, _instance, _eventgroup, _event);
 
         if (state_ == inner_state_type_e::ST_REGISTERED) {
@@ -625,7 +625,7 @@ void routing_manager_proxy::unsubscribe(client_t _client, service_t _service,
             if (its_target) {
                 its_target->send(its_command, sizeof(its_command));
             } else {
-                std::lock_guard<std::mutex> its_lock(sender_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
                 if (sender_) {
                     sender_->send(its_command, sizeof(its_command));
                 }
@@ -647,7 +647,7 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
     bool is_sent(false);
     bool has_remote_subscribers(false);
     {
-        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
         if (state_ != inner_state_type_e::ST_REGISTERED) {
             return false;
         }
@@ -677,7 +677,7 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
                     << std::hex << std::setw(4) << std::setfill('0') << its_session << ":"
                     << std::hex << std::setw(4) << std::setfill('0') << its_client << "] "
                     << "type=" << std::hex << static_cast<std::uint32_t>(_data[VSOMEIP_MESSAGE_TYPE_POS])
-                    << " thread=" << std::hex << std::this_thread::get_id();
+                    << " thread=" << std::hex << boost::this_thread::get_id();
             }
         } else {
             VSOMEIP_ERROR << "routing_manager_proxy::send: ("
@@ -737,7 +737,7 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
         bool message_to_stub(false);
 #endif
         if (!its_target) {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
             if (sender_) {
                 its_target = sender_;
 #ifdef USE_DLT
@@ -807,7 +807,7 @@ void routing_manager_proxy::on_connect(std::shared_ptr<endpoint> _endpoint) {
     _endpoint->set_connected(true);
     _endpoint->set_established(true);
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (_endpoint != sender_) {
             return;
         }
@@ -822,7 +822,7 @@ void routing_manager_proxy::on_connect(std::shared_ptr<endpoint> _endpoint) {
 
 void routing_manager_proxy::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         is_connected_ = !(_endpoint == sender_);
     }
     if (!is_connected_) {
@@ -1119,7 +1119,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
             std::memcpy(&its_subscription_id, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 10],
                     sizeof(its_subscription_id));
             {
-                std::unique_lock<std::recursive_mutex> its_lock(incoming_subscriptions_mutex_);
+                boost::unique_lock<boost::recursive_mutex> its_lock(incoming_subscriptions_mutex_);
                 if (its_subscription_id != DEFAULT_SUBSCRIPTION) {
                     its_lock.unlock();
                     routing_manager_base::set_incoming_subscription_state(its_client, its_service,
@@ -1545,7 +1545,7 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
 
             if (routing_info_entry == routing_info_entry_e::RIE_ADD_CLIENT) {
                 {
-                    std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(known_clients_mutex_);
                     known_clients_.insert(its_client);
                 }
                 if (its_client == get_client()) {
@@ -1567,7 +1567,7 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                     host_->on_state(static_cast<state_type_e>(inner_state_type_e::ST_REGISTERED));
 
                     {
-                        std::lock_guard<std::mutex> its_lock(state_mutex_);
+                        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
                         boost::system::error_code ec;
                         register_application_timer_.cancel(ec);
                         send_registered_ack();
@@ -1579,7 +1579,7 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                 }
             } else if (routing_info_entry == routing_info_entry_e::RIE_DEL_CLIENT) {
                 {
-                    std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(known_clients_mutex_);
                     known_clients_.erase(its_client);
                 }
                 if (its_client == get_client()) {
@@ -1591,7 +1591,7 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                     host_->on_state(static_cast<state_type_e>(inner_state_type_e::ST_DEREGISTERED));
 
                     {
-                        std::lock_guard<std::mutex> its_lock(state_mutex_);
+                        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
                         state_ = inner_state_type_e::ST_DEREGISTERED;
                         // Notify stop() call about clean deregistration
                         state_condition_.notify_one();
@@ -1629,15 +1629,15 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
 
                         if (routing_info_entry == routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE) {
                             {
-                                std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
+                                boost::lock_guard<boost::mutex> its_lock(known_clients_mutex_);
                                 known_clients_.insert(its_client);
                             }
                             {
-                                std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+                                boost::lock_guard<boost::mutex> its_lock(local_services_mutex_);
                                 local_services_[its_service][its_instance] = std::make_tuple(its_major, its_minor, its_client);
                             }
                             {
-                                std::lock_guard<std::mutex> its_lock(state_mutex_);
+                                boost::lock_guard<boost::mutex> its_lock(state_mutex_);
                                 send_pending_subscriptions(its_service, its_instance, its_major);
                             }
                             host_->on_availability(its_service, its_instance, true, its_major, its_minor);
@@ -1648,7 +1648,7 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                                 << ":" << std::dec << int(its_major) << "." << std::dec << its_minor << "]";
                         } else if (routing_info_entry == routing_info_entry_e::RIE_DEL_SERVICE_INSTANCE) {
                             {
-                                std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+                                boost::lock_guard<boost::mutex> its_lock(local_services_mutex_);
                                 auto found_service = local_services_.find(its_service);
                                 if (found_service != local_services_.end()) {
                                     found_service->second.erase(its_instance);
@@ -1685,11 +1685,11 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
             major_version_t major_;
             event_t event_;
         };
-        std::lock_guard<std::recursive_mutex> its_lock(incoming_subscriptions_mutex_);
+        boost::lock_guard<boost::recursive_mutex> its_lock(incoming_subscriptions_mutex_);
         std::forward_list<struct subscription_info> subscription_actions;
         if (pending_incoming_subscripitons_.size()) {
             {
-                std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(known_clients_mutex_);
                 for (const client_t client : known_clients_) {
                     auto its_client = pending_incoming_subscripitons_.find(client);
                     if (its_client != pending_incoming_subscripitons_.end()) {
@@ -1727,7 +1727,7 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                     routing_manager_base::erase_incoming_subscription_state(si.client_id_, si.service_id_,
                             si.instance_id_, si.eventgroup_id_, si.event_);
                     {
-                        std::lock_guard<std::recursive_mutex> its_lock2(incoming_subscriptions_mutex_);
+                        boost::lock_guard<boost::recursive_mutex> its_lock2(incoming_subscriptions_mutex_);
                         pending_incoming_subscripitons_.erase(si.client_id_);
                     }
                 });
@@ -1792,7 +1792,7 @@ void routing_manager_proxy::reconnect(const std::unordered_set<client_t> &_clien
     host_->on_state(static_cast<state_type_e>(inner_state_type_e::ST_DEREGISTERED));
 
     {
-        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(state_mutex_);
         state_ = inner_state_type_e::ST_DEREGISTERED;
         // Notify stop() call about clean deregistration
         state_condition_.notify_one();
@@ -1814,7 +1814,7 @@ void routing_manager_proxy::reconnect(const std::unordered_set<client_t> &_clien
         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << get_client()
                 << " :  routing_manager_proxy::reconnect: isn't allowed"
                 << " to use the server endpoint due to credential check failed!";
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->stop();
         }
@@ -1822,7 +1822,7 @@ void routing_manager_proxy::reconnect(const std::unordered_set<client_t> &_clien
     }
 #endif
 
-    std::lock_guard<std::mutex> its_lock(sender_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
     if (sender_) {
         sender_->restart();
     }
@@ -1836,8 +1836,8 @@ void routing_manager_proxy::register_application() {
             sizeof(client_));
 
     if (is_connected_) {
-        std::lock_guard<std::mutex> its_state_lock(state_mutex_);
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_state_lock(state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             {
                 state_ = inner_state_type_e::ST_REGISTERING;
@@ -1862,7 +1862,7 @@ void routing_manager_proxy::deregister_application() {
             sizeof(client_));
     if (is_connected_)
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(&its_command[0], uint32_t(its_command.size()));
         }
@@ -1877,7 +1877,7 @@ void routing_manager_proxy::send_pong() const {
             sizeof(client_t));
 
     if (is_connected_) {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_pong, sizeof(its_pong));
         }
@@ -1921,7 +1921,7 @@ void routing_manager_proxy::send_request_services(std::set<service_data_t>& _req
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(&its_command[0], static_cast<std::uint32_t>(its_size + VSOMEIP_COMMAND_HEADER_SIZE));
         }
@@ -1946,7 +1946,7 @@ void routing_manager_proxy::send_release_service(client_t _client, service_t _se
             sizeof(_instance));
 
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_command, sizeof(its_command));
         }
@@ -1993,7 +1993,7 @@ void routing_manager_proxy::send_register_event(client_t _client,
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_command, static_cast<std::uint32_t>(its_eventgroups_size));
         }
@@ -2053,7 +2053,7 @@ void routing_manager_proxy::on_identify_response(client_t _client, service_t _se
     std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 4], &_reliable,
             sizeof(_reliable));
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_command, size);
         }
@@ -2096,7 +2096,7 @@ void routing_manager_proxy::on_stop_offer_service(service_t _service,
     (void) _minor;
     std::map<event_t, std::shared_ptr<event> > events;
     {
-        std::lock_guard<std::mutex> its_lock(events_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(events_mutex_);
         auto its_events_service = events_.find(_service);
         if (its_events_service != events_.end()) {
             auto its_events_instance = its_events_service->second.find(_instance);
@@ -2179,10 +2179,10 @@ void routing_manager_proxy::notify_remote_initially(service_t _service, instance
                 if (service_info) {
                     its_notification->set_interface_version(service_info->get_major());
                 }
-                std::lock_guard<std::mutex> its_lock(serialize_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(serialize_mutex_);
                 if (serializer_->serialize(its_notification.get())) {
                     {
-                        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+                        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
                         if (sender_) {
                             send_local(sender_, VSOMEIP_ROUTING_CLIENT, serializer_->get_data(),
                                     serializer_->get_size(), _instance, true, false, VSOMEIP_NOTIFY);
@@ -2200,7 +2200,7 @@ void routing_manager_proxy::notify_remote_initially(service_t _service, instance
 
 uint32_t routing_manager_proxy::get_remote_subscriber_count(service_t _service,
         instance_t _instance, eventgroup_t _eventgroup, bool _increment) {
-    std::lock_guard<std::mutex> its_lock(remote_subscriber_count_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(remote_subscriber_count_mutex_);
     uint32_t count (0);
     bool found(false);
     auto found_service = remote_subscriber_count_.find(_service);
@@ -2232,7 +2232,7 @@ uint32_t routing_manager_proxy::get_remote_subscriber_count(service_t _service,
 
 void routing_manager_proxy::clear_remote_subscriber_count(
         service_t _service, instance_t _instance) {
-    std::lock_guard<std::mutex> its_lock(remote_subscriber_count_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(remote_subscriber_count_mutex_);
     auto found_service = remote_subscriber_count_.find(_service);
     if (found_service != remote_subscriber_count_.end()) {
         if (found_service->second.erase(_instance)) {
@@ -2248,14 +2248,14 @@ void routing_manager_proxy::register_application_timeout_cbk(
     if (!_error) {
         bool register_again(false);
         {
-            std::lock_guard<std::mutex> its_lock(state_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(state_mutex_);
             if (state_ != inner_state_type_e::ST_REGISTERED) {
                 state_ = inner_state_type_e::ST_DEREGISTERED;
                 register_again = true;
             }
         }
         if (register_again) {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
             VSOMEIP_WARNING << std::hex << "Client 0x" << get_client() << " register timeout!"
                     << " : Restart route to stub!";
             if (sender_) {
@@ -2272,7 +2272,7 @@ void routing_manager_proxy::send_registered_ack() {
     std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &client,
             sizeof(client));
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_command, VSOMEIP_COMMAND_HEADER_SIZE);
         }
@@ -2280,7 +2280,7 @@ void routing_manager_proxy::send_registered_ack() {
 }
 
 bool routing_manager_proxy::is_client_known(client_t _client) {
-    std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(known_clients_mutex_);
     return (known_clients_.find(_client) != known_clients_.end());
 }
 
@@ -2306,7 +2306,7 @@ bool routing_manager_proxy::create_placeholder_event_and_subscribe(
 
 void routing_manager_proxy::request_debounce_timeout_cbk(
         boost::system::error_code const &_error) {
-    std::lock_guard<std::mutex> its_lock(state_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(state_mutex_);
     if (!_error) {
         if (requests_to_debounce_.size()) {
             if (state_ == inner_state_type_e::ST_REGISTERED) {
@@ -2316,7 +2316,7 @@ void routing_manager_proxy::request_debounce_timeout_cbk(
                 requests_to_debounce_.clear();
             } else {
                 {
-                    std::lock_guard<std::mutex> its_lock(request_timer_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(request_timer_mutex_);
                     request_debounce_timer_running_ = true;
                     request_debounce_timer_.expires_from_now(std::chrono::milliseconds(configuration_->get_request_debouncing(host_->get_name())));
                     request_debounce_timer_.async_wait(
@@ -2330,7 +2330,7 @@ void routing_manager_proxy::request_debounce_timeout_cbk(
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock(request_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(request_timer_mutex_);
         request_debounce_timer_running_ = false;
     }
 }
@@ -2349,13 +2349,13 @@ void routing_manager_proxy::handle_client_error(client_t _client) {
     } else {
         bool should_reconnect(true);
         {
-            std::unique_lock<std::mutex> its_lock(state_mutex_);
+            boost::unique_lock<boost::mutex> its_lock(state_mutex_);
             should_reconnect = is_started_;
         }
         if (should_reconnect) {
             std::unordered_set<client_t> its_known_clients;
             {
-                std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(known_clients_mutex_);
                 its_known_clients = known_clients_;
             }
             reconnect(its_known_clients);
@@ -2378,7 +2378,7 @@ void routing_manager_proxy::send_get_offered_services_info(client_t _client, off
     std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], &_offer_type,
                 sizeof(_offer_type));
 
-    std::lock_guard<std::mutex> its_lock(sender_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
     if (sender_) {
         sender_->send(its_command, sizeof(its_command));
     }
@@ -2407,7 +2407,7 @@ void routing_manager_proxy::send_unsubscribe_ack(
             &_subscription_id, sizeof(_subscription_id));
 
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_command, sizeof(its_command));
         }
@@ -2415,7 +2415,7 @@ void routing_manager_proxy::send_unsubscribe_ack(
 }
 
 void routing_manager_proxy::resend_provided_event_registrations() {
-    std::lock_guard<std::mutex> its_lock(state_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(state_mutex_);
     for (const event_data_t& ed : pending_event_registrations_) {
         if (ed.is_provided_) {
             send_register_event(client_, ed.service_, ed.instance_,
@@ -2439,7 +2439,7 @@ void routing_manager_proxy::send_resend_provided_event_response(pending_remote_o
     std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], &_id,
             sizeof(pending_remote_offer_id_t));
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_command, sizeof(its_command));
         }
@@ -2460,7 +2460,7 @@ void routing_manager_proxy::send_update_security_policy_response(pending_securit
     std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], &_update_id,
             sizeof(pending_security_update_id_t));
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_command, sizeof(its_command));
         }
@@ -2481,7 +2481,7 @@ void routing_manager_proxy::send_remove_security_policy_response(pending_securit
     std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], &_update_id,
             sizeof(pending_security_update_id_t));
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->send(its_command, sizeof(its_command));
         }

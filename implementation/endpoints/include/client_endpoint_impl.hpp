@@ -8,7 +8,7 @@
 
 #include <condition_variable>
 #include <deque>
-#include <mutex>
+#include <boost/thread.hpp>
 #include <vector>
 #include <atomic>
 
@@ -91,13 +91,13 @@ protected:
     bool check_queue_limit(const uint8_t *_data, std::uint32_t _size) const;
     void send_or_start_flush_timer(bool _flush, bool _queue_size_zero_on_entry);
 
-    mutable std::mutex socket_mutex_;
+    mutable boost::mutex socket_mutex_;
     std::unique_ptr<socket_type> socket_;
     endpoint_type remote_;
 
     boost::asio::steady_timer flush_timer_;
 
-    std::mutex connect_timer_mutex_;
+    boost::mutex connect_timer_mutex_;
     boost::asio::steady_timer connect_timer_;
     std::atomic<uint32_t> connect_timeout_;
     std::atomic<cei_state_e> state_;
@@ -108,7 +108,7 @@ protected:
     std::deque<message_buffer_ptr_t> queue_;
     std::size_t queue_size_;
 
-    std::mutex mutex_;
+    boost::mutex mutex_;
 
     std::atomic<bool> was_not_connected_;
 

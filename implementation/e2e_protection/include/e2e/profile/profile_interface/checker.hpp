@@ -8,7 +8,7 @@
 
 #include "../profile_interface/profile_interface.hpp"
 #include "../../../buffer/buffer.hpp"
-#include <mutex>
+#include <boost/thread.hpp>
 
 namespace vsomeip {
 namespace e2e {

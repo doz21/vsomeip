@@ -6,13 +6,11 @@
 #ifndef VSOMEIP_ROUTING_MANAGER_STUB
 #define VSOMEIP_ROUTING_MANAGER_STUB
 
-#include <condition_variable>
 #include <list>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <set>
-#include <thread>
+#include <boost/thread.hpp>
 #include <atomic>
 #include <unordered_set>
 
@@ -168,38 +166,38 @@ private:
 private:
     routing_manager_stub_host *host_;
     boost::asio::io_service &io_;
-    std::mutex watchdog_timer_mutex_;
+    boost::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;
 
     boost::asio::steady_timer client_id_timer_;
     std::set<client_t> used_client_ids_;
-    std::mutex used_client_ids_mutex_;
+    boost::mutex used_client_ids_mutex_;
 
     std::string endpoint_path_;
     std::string local_receiver_path_;
     std::shared_ptr<endpoint> endpoint_;
     std::shared_ptr<endpoint> local_receiver_;
-    std::mutex local_receiver_mutex_;
+    boost::mutex local_receiver_mutex_;
 
     std::map<client_t,
             std::pair<uint8_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t>> > > > routing_info_;
-    mutable std::mutex routing_info_mutex_;
+    mutable boost::mutex routing_info_mutex_;
     std::shared_ptr<configuration> configuration_;
 
     size_t routingCommandSize_;
 
     bool is_socket_activated_;
     std::atomic<bool> client_registration_running_;
-    std::shared_ptr<std::thread> client_registration_thread_;
-    std::mutex client_registration_mutex_;
-    std::condition_variable client_registration_condition_;
+    std::shared_ptr<boost::thread> client_registration_thread_;
+    boost::mutex client_registration_mutex_;
+    boost::condition_variable client_registration_condition_;
 
     std::map<client_t, std::vector<registration_type_e>> pending_client_registrations_;
     const std::uint32_t max_local_message_size_;
     static const std::vector<byte_t> its_ping_;
     const std::chrono::milliseconds configured_watchdog_timeout_;
     boost::asio::steady_timer pinged_clients_timer_;
-    std::mutex pinged_clients_mutex_;
+    boost::mutex pinged_clients_mutex_;
     std::map<client_t, boost::asio::steady_timer::time_point> pinged_clients_;
 
     std::map<client_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t> > > > service_requests_;
@@ -210,7 +208,7 @@ private:
     std::map<client_t, std::vector<byte_t>> client_credentials_info_;
 
 
-    std::mutex updated_security_policies_mutex_;
+    boost::mutex updated_security_policies_mutex_;
     std::map<uint32_t, std::shared_ptr<payload>> updated_security_policies_;
 
 };

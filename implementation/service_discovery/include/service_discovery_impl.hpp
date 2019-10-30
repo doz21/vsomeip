@@ -8,7 +8,7 @@
 
 #include <map>
 #include <memory>
-#include <mutex>
+#include <boost/thread.hpp>
 #include <set>
 #include <forward_list>
 #include <atomic>
@@ -363,33 +363,33 @@ private:
     std::shared_ptr<deserializer> deserializer_;
 
     requests_t requested_;
-    std::mutex requested_mutex_;
+    boost::mutex requested_mutex_;
     std::map<service_t,
             std::map<instance_t,
                     std::map<eventgroup_t,
                         std::map<client_t,
                             std::shared_ptr<subscription> > > > > subscribed_;
-    std::mutex subscribed_mutex_;
+    boost::mutex subscribed_mutex_;
 
-    std::mutex serialize_mutex_;
+    boost::mutex serialize_mutex_;
 
     // Sessions
     std::map<boost::asio::ip::address, std::pair<session_t, bool> > sessions_sent_;
     std::map<boost::asio::ip::address,
         std::tuple<session_t, session_t, bool, bool> > sessions_received_;
-    std::mutex sessions_received_mutex_;
+    boost::mutex sessions_received_mutex_;
 
     // Runtime
     std::weak_ptr<runtime> runtime_;
 
     // TTL handling for services offered by other hosts
-    std::mutex ttl_timer_mutex_;
+    boost::mutex ttl_timer_mutex_;
     boost::asio::steady_timer ttl_timer_;
     std::chrono::milliseconds ttl_timer_runtime_;
     ttl_t ttl_;
 
     // TTL handling for subscriptions done by other hosts
-    std::mutex subscription_expiration_timer_mutex_;
+    boost::mutex subscription_expiration_timer_mutex_;
     boost::asio::steady_timer subscription_expiration_timer_;
     std::chrono::steady_clock::time_point next_subscription_expiration_;
 
@@ -400,28 +400,28 @@ private:
     std::chrono::milliseconds repetitions_base_delay_;
     std::uint8_t repetitions_max_;
     std::chrono::milliseconds cyclic_offer_delay_;
-    std::mutex offer_debounce_timer_mutex_;
+    boost::mutex offer_debounce_timer_mutex_;
     boost::asio::steady_timer offer_debounce_timer_;
     // this map is used to collect offers while for offer debouncing
-    std::mutex collected_offers_mutex_;
+    boost::mutex collected_offers_mutex_;
     services_t collected_offers_;
 
     std::chrono::milliseconds find_debounce_time_;
-    std::mutex find_debounce_timer_mutex_;
+    boost::mutex find_debounce_timer_mutex_;
     boost::asio::steady_timer find_debounce_timer_;
     requests_t collected_finds_;
 
     // this map contains the offers and their timers currently in repetition phase
-    std::mutex repetition_phase_timers_mutex_;
+    boost::mutex repetition_phase_timers_mutex_;
     std::map<std::shared_ptr<boost::asio::steady_timer>,
             services_t> repetition_phase_timers_;
 
     // this map contains the finds and their timers currently in repetition phase
-    std::mutex find_repetition_phase_timers_mutex_;
+    boost::mutex find_repetition_phase_timers_mutex_;
     std::map<std::shared_ptr<boost::asio::steady_timer>,
             requests_t> find_repetition_phase_timers_;
 
-    std::mutex main_phase_timer_mutex_;
+    boost::mutex main_phase_timer_mutex_;
     boost::asio::steady_timer main_phase_timer_;
 
     std::atomic<bool> is_suspended_;
@@ -433,29 +433,29 @@ private:
 
     std::atomic<bool> is_diagnosis_;
 
-    std::mutex pending_remote_subscriptions_mutex_;
+    boost::mutex pending_remote_subscriptions_mutex_;
     std::map<service_t,
             std::map<instance_t,
                     std::map<eventgroup_t,
                             std::map<client_t, std::vector<std::shared_ptr<subscriber_t>>>>>> pending_remote_subscriptions_;
-    std::mutex response_mutex_;
+    boost::mutex response_mutex_;
 
     configuration::ttl_map_t ttl_factor_offers_;
     configuration::ttl_map_t ttl_factor_subscriptions_;
 
-    std::mutex last_msg_received_timer_mutex_;
+    boost::mutex last_msg_received_timer_mutex_;
     boost::asio::steady_timer last_msg_received_timer_;
     std::chrono::milliseconds last_msg_received_timer_timeout_;
 
-    std::mutex remote_offer_types_mutex_;
+    boost::mutex remote_offer_types_mutex_;
     std::map<std::pair<service_t, instance_t>, remote_offer_type_e> remote_offer_types_;
     std::map<boost::asio::ip::address, std::set<std::pair<service_t, instance_t>>> remote_offers_by_ip_;
 
     reboot_notification_handler_t reboot_notification_handler_;
     offer_acceptance_handler_t offer_acceptance_handler_;
 
-    std::mutex offer_mutex_;
-    std::mutex check_ttl_mutex_;
+    boost::mutex offer_mutex_;
+    boost::mutex check_ttl_mutex_;
 };
 
 }  // namespace sd

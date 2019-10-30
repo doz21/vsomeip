@@ -13,7 +13,7 @@
 #include <linux/rtnetlink.h>
 
 #include <map>
-#include <mutex>
+#include <boost/thread.hpp>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/basic_raw_socket.hpp>
@@ -171,7 +171,7 @@ private:
 
     net_if_changed_handler_t handler_;
 
-    std::mutex socket_mutex_;
+    boost::mutex socket_mutex_;
     boost::asio::basic_raw_socket<nl_protocol> socket_;
 
     const size_t recv_buffer_size = 16384;

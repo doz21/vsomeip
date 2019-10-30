@@ -7,13 +7,11 @@
 #define VSOMEIP_APPLICATION_IMPL_HPP
 
 #include <atomic>
-#include <condition_variable>
 #include <deque>
 #include <map>
-#include <mutex>
 #include <set>
 #include <string>
-#include <thread>
+#include <boost/thread.hpp>
 #include <vector>
 
 #include <boost/asio/signal_set.hpp>
@@ -293,7 +291,7 @@ private:
     std::shared_ptr<sync_handler> get_next_handler();
     void reschedule_availability_handler(const std::shared_ptr<sync_handler> &_handler);
     bool has_active_dispatcher();
-    bool is_active_dispatcher(const std::thread::id &_id);
+    bool is_active_dispatcher(const boost::thread::id &_id);
     void remove_elapsed_dispatchers();
 
     void shutdown();
@@ -325,16 +323,16 @@ private:
     std::shared_ptr<runtime> runtime_;
     client_t client_; // unique application identifier
     session_t session_;
-    std::mutex session_mutex_;
+    boost::mutex session_mutex_;
 
-    std::mutex initialize_mutex_;
+    boost::mutex initialize_mutex_;
     bool is_initialized_;
 
     std::string name_;
     std::shared_ptr<configuration> configuration_;
 
     boost::asio::io_service io_;
-    std::set<std::shared_ptr<std::thread> > io_threads_;
+    std::set<std::shared_ptr<boost::thread> > io_threads_;
     std::shared_ptr<boost::asio::io_service::work> work_;
 
     // Proxy to or the Routing Manager itself
@@ -344,23 +342,23 @@ private:
     state_type_e state_;
 
     // vsomeip state handler
-    std::mutex state_handler_mutex_;
+    boost::mutex state_handler_mutex_;
     state_handler_t handler_;
 
     // vsomeip offered services handler
-    std::mutex offered_services_handler_mutex_;
+    boost::mutex offered_services_handler_mutex_;
     offered_services_handler_t offered_services_handler_;
 
     // Method/Event (=Member) handlers
     std::map<service_t,
             std::map<instance_t, std::map<method_t, message_handler_t> > > members_;
-    mutable std::mutex members_mutex_;
+    mutable boost::mutex members_mutex_;
 
     // Availability handlers
     typedef std::map<major_version_t, std::map<minor_version_t, std::pair<availability_handler_t,
             bool>>> availability_major_minor_t;
     std::map<service_t, std::map<instance_t, availability_major_minor_t>> availability_;
-    mutable std::mutex availability_mutex_;
+    mutable boost::mutex availability_mutex_;
 
     // Availability
     mutable available_t available_;
@@ -370,11 +368,11 @@ private:
             std::map<instance_t,
                     std::map<eventgroup_t,
                             std::pair<subscription_handler_t, async_subscription_handler_t>>>> subscription_;
-    mutable std::mutex subscription_mutex_;
+    mutable boost::mutex subscription_mutex_;
     std::map<service_t,
         std::map<instance_t, std::map<eventgroup_t,
         std::map<client_t, error_handler_t > > > > eventgroup_error_handlers_;
-    mutable std::mutex subscription_error_mutex_;
+    mutable boost::mutex subscription_error_mutex_;
 
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
     // Signals
@@ -384,60 +382,60 @@ private:
 
     // Handlers
     mutable std::deque<std::shared_ptr<sync_handler>> handlers_;
-    mutable std::mutex handlers_mutex_;
+    mutable boost::mutex handlers_mutex_;
 
     // Dispatching
     std::atomic<bool> is_dispatching_;
     // Dispatcher threads
-    std::map<std::thread::id, std::shared_ptr<std::thread>> dispatchers_;
+    std::map<boost::thread::id, std::shared_ptr<boost::thread>> dispatchers_;
     // Dispatcher threads that elapsed and can be removed
-    std::set<std::thread::id> elapsed_dispatchers_;
+    std::set<boost::thread::id> elapsed_dispatchers_;
     // Dispatcher threads that are running
-    std::set<std::thread::id> running_dispatchers_;
+    std::set<boost::thread::id> running_dispatchers_;
     // Mutex to protect access to dispatchers_ & elapsed_dispatchers_
-    std::mutex dispatcher_mutex_;
+    boost::mutex dispatcher_mutex_;
 
     // Condition to wakeup the dispatcher thread
-    mutable std::condition_variable dispatcher_condition_;
+    mutable boost::condition_variable dispatcher_condition_;
     std::size_t max_dispatchers_;
     std::size_t max_dispatch_time_;
 
     // Workaround for destruction problem
     std::shared_ptr<logger> logger_;
 
-    std::condition_variable stop_cv_;
-    std::mutex start_stop_mutex_;
+    boost::condition_variable stop_cv_;
+    boost::mutex start_stop_mutex_;
     bool stopped_;
-    std::thread stop_thread_;
+    boost::thread stop_thread_;
 
-    std::condition_variable block_stop_cv_;
-    std::mutex block_stop_mutex_;
+    boost::condition_variable block_stop_cv_;
+    boost::mutex block_stop_mutex_;
     bool block_stopping_;
 
     static uint32_t app_counter__;
-    static std::mutex app_counter_mutex__;
+    static boost::mutex app_counter_mutex__;
 
     bool is_routing_manager_host_;
 
     // Event subscriptions
-    std::mutex subscriptions_mutex_;
+    boost::mutex subscriptions_mutex_;
     std::map<service_t, std::map<instance_t,
             std::map<event_t, std::map<eventgroup_t, bool>>>> subscriptions_;
 
-    std::thread::id stop_caller_id_;
-    std::thread::id start_caller_id_;
+    boost::thread::id stop_caller_id_;
+    boost::thread::id start_caller_id_;
 
     bool stopped_called_;
 
     std::map<service_t, std::map<instance_t, std::map<eventgroup_t,
             std::map<event_t, std::pair<subscription_status_handler_t, bool> > > > > subscription_status_handlers_;
-    std::mutex subscription_status_handlers_mutex_;
+    boost::mutex subscription_status_handlers_mutex_;
 
-    std::mutex subscriptions_state_mutex_;
+    boost::mutex subscriptions_state_mutex_;
     std::map<std::tuple<service_t, instance_t, eventgroup_t, event_t>,
         subscription_state_e> subscription_state_;
 
-    std::mutex watchdog_timer_mutex_;
+    boost::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;
     watchdog_handler_t watchdog_handler_;
     std::chrono::seconds watchdog_interval_;

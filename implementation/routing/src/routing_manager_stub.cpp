@@ -62,7 +62,7 @@ void routing_manager_stub::init() {
 
 void routing_manager_stub::start() {
     {
-        std::lock_guard<std::mutex> its_lock(used_client_ids_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(used_client_ids_mutex_);
         used_client_ids_ = utility::get_used_client_ids();
         // Wait VSOMEIP_MAX_CONNECT_TIMEOUT * 2 and expect after that time
         // that all client_ids are used have to be connected to the routing.
@@ -84,7 +84,7 @@ void routing_manager_stub::start() {
     }
 
     client_registration_running_ = true;
-    client_registration_thread_ = std::make_shared<std::thread>(
+    client_registration_thread_ = std::make_shared<boost::thread>(
             std::bind(&routing_manager_stub::client_registration_func, this));
 
     if (configuration_->is_watchdog_enabled()) {
@@ -99,14 +99,14 @@ void routing_manager_stub::start() {
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(routing_info_mutex_);
         routing_info_[host_->get_client()].first = 0;
     }
 }
 
 void routing_manager_stub::stop() {
     {
-        std::lock_guard<std::mutex> its_lock(client_registration_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(client_registration_mutex_);
         client_registration_running_ = false;
         client_registration_condition_.notify_one();
     }
@@ -115,12 +115,12 @@ void routing_manager_stub::stop() {
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(watchdog_timer_mutex_);
         watchdog_timer_.cancel();
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(used_client_ids_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(used_client_ids_mutex_);
         client_id_timer_.cancel();
     }
 
@@ -732,7 +732,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     std::memcpy(&its_offer_type, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                             sizeof(its_offer_type));
 
-                    std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+                    boost::lock_guard<boost::mutex> its_guard(routing_info_mutex_);
                     create_offered_services_info(its_client);
 
                     for (auto found_client : routing_info_) {
@@ -826,7 +826,7 @@ void routing_manager_stub::on_register_application(client_t _client) {
                 << " failed. It is already registered!";
     } else {
         (void)host_->find_or_create_local(_client);
-        std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(routing_info_mutex_);
         routing_info_[_client].first = 0;
     }
 }
@@ -836,7 +836,7 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
             std::tuple<service_t, instance_t,
                        major_version_t, minor_version_t>> services_to_report;
     {
-        std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(routing_info_mutex_);
         auto its_info = routing_info_.find(_client);
         if (its_info != routing_info_.end()) {
             for (const auto &its_service : its_info->second.second) {
@@ -868,7 +868,7 @@ void routing_manager_stub::client_registration_func(void) {
         pthread_setname_np(pthread_self(),s.str().c_str());
     }
 #endif
-    std::unique_lock<std::mutex> its_lock(client_registration_mutex_);
+    boost::unique_lock<boost::mutex> its_lock(client_registration_mutex_);
     while (client_registration_running_) {
         while (!pending_client_registrations_.size() && client_registration_running_) {
             client_registration_condition_.wait(its_lock);
@@ -891,7 +891,7 @@ void routing_manager_stub::client_registration_func(void) {
                 // Don't inform client if we deregister because of an client
                 // endpoint error to avoid writing in an already closed socket
                 if (b != registration_type_e::DEREGISTER_ON_ERROR) {
-                    std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+                    boost::lock_guard<boost::mutex> its_guard(routing_info_mutex_);
                     create_client_routing_info(r.first);
                     insert_client_routing_info(r.first,
                             b == registration_type_e::REGISTER ?
@@ -906,7 +906,7 @@ void routing_manager_stub::client_registration_func(void) {
                 }
                 if (b != registration_type_e::REGISTER) {
                     {
-                        std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+                        boost::lock_guard<boost::mutex> its_guard(routing_info_mutex_);
                         auto its_connection = connection_matrix_.find(r.first);
                         if (its_connection != connection_matrix_.end()) {
                             for (auto its_client : its_connection->second) {
@@ -1020,7 +1020,7 @@ void routing_manager_stub::on_offer_service(client_t _client,
 
     if (_client == VSOMEIP_ROUTING_CLIENT ||
             configuration_->is_offer_allowed(_client, _service, _instance)) {
-        std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+        boost::lock_guard<boost::mutex> its_guard(routing_info_mutex_);
         routing_info_[_client].second[_service][_instance] = std::make_pair(_major, _minor);
         if (configuration_->is_security_enabled()) {
             distribute_credentials(_client, _service, _instance);
@@ -1038,7 +1038,7 @@ void routing_manager_stub::on_offer_service(client_t _client,
 
 void routing_manager_stub::on_stop_offer_service(client_t _client,
         service_t _service, instance_t _instance,  major_version_t _major, minor_version_t _minor) {
-    std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+    boost::lock_guard<boost::mutex> its_guard(routing_info_mutex_);
     auto found_client = routing_info_.find(_client);
     if (found_client != routing_info_.end()) {
         auto found_service = found_client->second.second.find(_service);
@@ -1464,7 +1464,7 @@ bool routing_manager_stub::is_already_connected(client_t _source, client_t _sink
 }
 
 void routing_manager_stub::broadcast(const std::vector<byte_t> &_command) const {
-    std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+    boost::lock_guard<boost::mutex> its_guard(routing_info_mutex_);
     for (auto a : routing_info_) {
         if (a.first != VSOMEIP_ROUTING_CLIENT && a.first != host_->get_client()) {
             std::shared_ptr<endpoint> its_endpoint
@@ -1621,7 +1621,7 @@ void routing_manager_stub::send_subscribe_nack(client_t _client, service_t _serv
 bool routing_manager_stub::contained_in_routing_info(
         client_t _client, service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) const {
-    std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+    boost::lock_guard<boost::mutex> its_guard(routing_info_mutex_);
     auto found_client = routing_info_.find(_client);
     if (found_client != routing_info_.end()) {
         auto found_service = found_client->second.second.find(_service);
@@ -1645,7 +1645,7 @@ void routing_manager_stub::broadcast_ping() const {
 
 void routing_manager_stub::on_pong(client_t _client) {
     {
-        std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(routing_info_mutex_);
         auto found_info = routing_info_.find(_client);
         if (found_info != routing_info_.end()) {
             found_info->second.first = 0;
@@ -1666,7 +1666,7 @@ void routing_manager_stub::start_watchdog() {
                     check_watchdog();
             };
     {
-        std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(watchdog_timer_mutex_);
         // Divide / 2 as start and check sleep each
         watchdog_timer_.expires_from_now(
                 std::chrono::milliseconds(
@@ -1678,7 +1678,7 @@ void routing_manager_stub::start_watchdog() {
 
 void routing_manager_stub::check_watchdog() {
     {
-        std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+        boost::lock_guard<boost::mutex> its_guard(routing_info_mutex_);
         for (auto i = routing_info_.begin(); i != routing_info_.end(); ++i) {
             i->second.first++;
         }
@@ -1690,7 +1690,7 @@ void routing_manager_stub::check_watchdog() {
                 (void)_error;
                 std::list< client_t > lost;
                 {
-                    std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(routing_info_mutex_);
                     for (auto i : routing_info_) {
                         if (i.first > 0 && i.first != host_->get_client()) {
                             if (i.second.first > configuration_->get_allowed_missing_pongs()) {
@@ -1706,7 +1706,7 @@ void routing_manager_stub::check_watchdog() {
                 start_watchdog();
             };
     {
-        std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(watchdog_timer_mutex_);
         watchdog_timer_.expires_from_now(
                 std::chrono::milliseconds(
                         configuration_->get_watchdog_timeout() / 2));
@@ -1715,7 +1715,7 @@ void routing_manager_stub::check_watchdog() {
 }
 
 void routing_manager_stub::create_local_receiver() {
-    std::lock_guard<std::mutex> its_lock(local_receiver_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(local_receiver_mutex_);
 
     if (local_receiver_) {
         return;
@@ -1767,7 +1767,7 @@ bool routing_manager_stub::send_ping(client_t _client) {
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(pinged_clients_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(pinged_clients_mutex_);
 
         if (pinged_clients_.find(_client) != pinged_clients_.end()) {
             // client was already pinged: don't ping again and wait for answer
@@ -1821,7 +1821,7 @@ void routing_manager_stub::on_ping_timer_expired(
 
     {
         // remove timed out clients
-        std::lock_guard<std::mutex> its_lock(pinged_clients_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(pinged_clients_mutex_);
         const std::chrono::steady_clock::time_point now(
                 std::chrono::steady_clock::now());
 
@@ -1869,7 +1869,7 @@ void routing_manager_stub::on_ping_timer_expired(
 }
 
 void routing_manager_stub::remove_from_pinged_clients(client_t _client) {
-    std::lock_guard<std::mutex> its_lock(pinged_clients_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(pinged_clients_mutex_);
     if (!pinged_clients_.size()) {
         return;
     }
@@ -1908,7 +1908,7 @@ void routing_manager_stub::remove_from_pinged_clients(client_t _client) {
 }
 
 bool routing_manager_stub::is_registered(client_t _client) const {
-    std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(routing_info_mutex_);
     return (routing_info_.find(_client) != routing_info_.end());
 }
 
@@ -1946,12 +1946,12 @@ void routing_manager_stub::update_registration(client_t _client,
         }
     }
 
-    std::lock_guard<std::mutex> its_lock(client_registration_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(client_registration_mutex_);
     pending_client_registrations_[_client].push_back(_type);
     client_registration_condition_.notify_one();
 
     if (_type != registration_type_e::REGISTER) {
-        std::lock_guard<std::mutex> its_lock(used_client_ids_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(used_client_ids_mutex_);
         used_client_ids_.erase(_client);
     }
 }
@@ -1965,7 +1965,7 @@ void routing_manager_stub::handle_credentials(const client_t _client, std::set<s
         return;
     }
 
-    std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+    boost::lock_guard<boost::mutex> its_guard(routing_info_mutex_);
     std::set<std::pair<uint32_t, uint32_t>> its_credentials;
     std::pair<uint32_t, uint32_t> its_requester_uid_gid;
     if (configuration_->get_client_to_uid_gid_mapping(_client, its_requester_uid_gid)) {
@@ -2005,7 +2005,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<serv
         return;
     }
     bool service_available(false);
-    std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+    boost::lock_guard<boost::mutex> its_guard(routing_info_mutex_);
     create_client_routing_info(_client);
     for (auto request : _requests) {
         service_requests_[_client][request.service_][request.instance_]
@@ -2112,14 +2112,14 @@ void routing_manager_stub::send_identify_request_command(std::shared_ptr<vsomeip
 void routing_manager_stub::on_client_id_timer_expired(boost::system::error_code const &_error) {
     std::set<client_t> used_client_ids;
     {
-        std::lock_guard<std::mutex> its_lock(used_client_ids_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(used_client_ids_mutex_);
         used_client_ids = used_client_ids_;
         used_client_ids_.clear();
     }
 
     std::set<client_t> erroneous_clients;
     if (!_error) {
-        std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(routing_info_mutex_);
         for (auto client : used_client_ids) {
             if (client != VSOMEIP_ROUTING_CLIENT && client != get_client()) {
                 if (routing_info_.find(client) == routing_info_.end()) {
@@ -2170,7 +2170,7 @@ bool routing_manager_stub::send_provided_event_resend_request(client_t _client,
 
 bool routing_manager_stub::is_policy_cached(uint32_t _uid) {
     {
-        std::lock_guard<std::mutex> its_lock(updated_security_policies_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(updated_security_policies_mutex_);
         if (updated_security_policies_.find(_uid)
                 != updated_security_policies_.end()) {
             VSOMEIP_INFO << __func__ << " Policy for UID: " << std::dec
@@ -2185,14 +2185,14 @@ bool routing_manager_stub::is_policy_cached(uint32_t _uid) {
 void routing_manager_stub::policy_cache_add(uint32_t _uid, std::shared_ptr<payload> _payload) {
     // cache security policy payload for later distribution to new registering clients
     {
-        std::lock_guard<std::mutex> its_lock(updated_security_policies_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(updated_security_policies_mutex_);
         updated_security_policies_[_uid] = _payload;
     }
 }
 
 void routing_manager_stub::policy_cache_remove(uint32_t _uid) {
     {
-        std::lock_guard<std::mutex> its_lock(updated_security_policies_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(updated_security_policies_mutex_);
         updated_security_policies_.erase(_uid);
     }
 }
@@ -2236,7 +2236,7 @@ bool routing_manager_stub::send_cached_security_policies(client_t _client) {
     std::vector<byte_t> its_command;
     std::size_t its_size(0);
 
-    std::lock_guard<std::mutex> its_lock(updated_security_policies_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(updated_security_policies_mutex_);
     uint32_t its_policy_count = uint32_t(updated_security_policies_.size());
 
     if (!its_policy_count) {

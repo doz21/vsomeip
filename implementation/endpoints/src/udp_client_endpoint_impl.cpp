@@ -41,7 +41,7 @@ bool udp_client_endpoint_impl::is_local() const {
 }
 
 void udp_client_endpoint_impl::connect() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
     if (!its_error || its_error == boost::asio::error::already_open) {
@@ -123,12 +123,12 @@ void udp_client_endpoint_impl::restart(bool _force) {
     }
     state_ = cei_state_e::CONNECTING;
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         queue_.clear();
     }
     std::string local;
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         local = get_address_port_local();
     }
     shutdown_and_close_socket(false);
@@ -156,7 +156,7 @@ void udp_client_endpoint_impl::send_queued() {
     VSOMEIP_INFO << msg.str();
 #endif
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         socket_->async_send(
             boost::asio::buffer(*its_buffer),
             std::bind(
@@ -171,7 +171,7 @@ void udp_client_endpoint_impl::send_queued() {
 }
 
 void udp_client_endpoint_impl::receive() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     if (!socket_->is_open()) {
         return;
     }
@@ -203,7 +203,7 @@ bool udp_client_endpoint_impl::get_remote_address(
 }
 
 void udp_client_endpoint_impl::set_local_port() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     if (socket_->is_open()) {
         endpoint_type its_endpoint = socket_->local_endpoint(its_error);
@@ -349,13 +349,13 @@ void udp_client_endpoint_impl::print_status() {
     std::size_t its_data_size(0);
     std::size_t its_queue_size(0);
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         its_queue_size = queue_.size();
         its_data_size = queue_size_;
     }
     std::string local;
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         local = get_address_port_local();
     }
 

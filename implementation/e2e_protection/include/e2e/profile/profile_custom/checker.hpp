@@ -8,7 +8,7 @@
 
 #include "../profile_custom/profile_custom.hpp"
 #include "../profile_interface/checker.hpp"
-#include <mutex>
+#include <boost/thread.hpp>
 
 namespace vsomeip {
 namespace e2e {
@@ -30,7 +30,7 @@ class profile_custom_checker final : public vsomeip::e2e::profile_interface::che
 
 private:
     profile_config config_;
-    std::mutex check_mutex_;
+    boost::mutex check_mutex_;
 
 };
 

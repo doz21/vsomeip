@@ -9,8 +9,12 @@
 #include <set>
 #include <sstream>
 #include <limits>
-#include <ifaddrs.h>
-
+#ifndef _WIN32
+	#include <ifaddrs.h>
+#else
+	#include <boost/asio/ip/tcp.hpp>
+	#include <boost/asio/ip/host_name.hpp>
+#endif
 #define WIN32_LEAN_AND_MEAN
 
 #include <boost/algorithm/string.hpp>
@@ -199,7 +203,7 @@ configuration_impl::~configuration_impl() {
 }
 
 bool configuration_impl::load(const std::string &_name) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     if (is_loaded_)
         return true;
 
@@ -335,7 +339,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service,
         its_service->protocol_ = "someip";
 
         {
-            std::lock_guard<std::mutex> its_lock(services_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(services_mutex_);
             bool updated(false);
             auto found_service = services_.find(its_service->service_);
             if (found_service != services_.end()) {
@@ -382,7 +386,7 @@ bool configuration_impl::remote_offer_info_remove(service_t _service,
         VSOMEIP_ERROR << __func__ << " shall only be called after normal"
                 "configuration has been parsed";
     } else {
-        std::lock_guard<std::mutex> its_lock(services_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(services_mutex_);
         auto found_service = services_.find(_service);
         if (found_service != services_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -640,7 +644,7 @@ bool configuration_impl::load_routing_credentials(const element &_element) {
                         its_converter << std::dec << its_value;
                     }
                     its_converter >> its_uid;
-                    std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(routing_credentials_mutex_);
                     std::get<0>(routing_credentials_) = its_uid;
                 } else if (its_key == "gid") {
                     uint32_t its_gid(0);
@@ -650,7 +654,7 @@ bool configuration_impl::load_routing_credentials(const element &_element) {
                         its_converter << std::dec << its_value;
                     }
                     its_converter >> its_gid;
-                    std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(routing_credentials_mutex_);
                     std::get<1>(routing_credentials_) = its_gid;
                 }
             }
@@ -1294,7 +1298,7 @@ void configuration_impl::load_delays(
 }
 
 void configuration_impl::load_services(const element &_element) {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(services_mutex_);
     try {
         auto its_services = _element.tree_.get_child("services");
         for (auto i = its_services.begin(); i != its_services.end(); ++i)
@@ -2009,7 +2013,7 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                                 << " will be ignored as it would override an already existing policy of "
                                 << std::dec << overrides << " clients!";
                     } else {
-                        std::lock_guard<std::mutex> its_lock(policies_mutex_);
+                        boost::lock_guard<boost::mutex> its_lock(policies_mutex_);
                         policies_[std::make_pair(firstClient, lastClient)] = policy;
                     }
                     has_been_inserted = true;
@@ -2029,7 +2033,7 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                                 << client
                                 << " will be ignored as it would overwrite an already existing policy!";
                     } else {
-                        std::lock_guard<std::mutex> its_lock(policies_mutex_);
+                        boost::lock_guard<boost::mutex> its_lock(policies_mutex_);
                         policies_[std::make_pair(client, client)] = policy;
                     }
                     has_been_inserted= true;
@@ -2309,7 +2313,7 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
     }
 
     if (!has_been_inserted) {
-        std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(any_client_policies_mutex_);
         any_client_policies_.push_back(policy);
     }
 }
@@ -2350,12 +2354,12 @@ void configuration_impl::load_security_update_whitelist(const element &_element)
 
             if (its_whitelist->first == "uids") {
                 {
-                    std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(uid_whitelist_mutex_);
                     load_ranges(its_whitelist->second, uid_whitelist_);
                 }
             } else if (its_whitelist->first == "services") {
                 {
-                    std::lock_guard<std::mutex> its_lock(service_interface_whitelist_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(service_interface_whitelist_mutex_);
                     load_service_ranges(its_whitelist->second, service_interface_whitelist_);
                 }
             } else if (its_whitelist->first == "check-whitelist") {
@@ -2649,7 +2653,7 @@ std::string configuration_impl::get_unicast_address(service_t _service,
 
 uint16_t configuration_impl::get_reliable_port(service_t _service,
         instance_t _instance) const {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(services_mutex_);
     uint16_t its_reliable(ILLEGAL_PORT);
     auto its_service = find_service_unlocked(_service, _instance);
     if (its_service)
@@ -2660,7 +2664,7 @@ uint16_t configuration_impl::get_reliable_port(service_t _service,
 
 uint16_t configuration_impl::get_unreliable_port(service_t _service,
         instance_t _instance) const {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(services_mutex_);
     uint16_t its_unreliable = ILLEGAL_PORT;
      auto its_service = find_service_unlocked(_service, _instance);
     if (its_service)
@@ -2816,7 +2820,7 @@ std::size_t configuration_impl::get_max_dispatch_time(
 
 std::set<std::pair<service_t, instance_t> >
 configuration_impl::get_remote_services() const {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(services_mutex_);
     std::set<std::pair<service_t, instance_t> > its_remote_services;
     for (auto i : services_) {
         for (auto j : i.second) {
@@ -2952,7 +2956,7 @@ bool configuration_impl::find_port(uint16_t &_port, uint16_t _remote, bool _reli
 
 bool configuration_impl::is_event_reliable(service_t _service,
         instance_t _instance, event_t _event) const {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(services_mutex_);
     bool is_reliable(false);
     auto its_service = find_service_unlocked(_service, _instance);
     if (its_service) {
@@ -2971,7 +2975,7 @@ bool configuration_impl::is_event_reliable(service_t _service,
 
 std::shared_ptr<service> configuration_impl::find_service(service_t _service,
         instance_t _instance) const {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(services_mutex_);
     return find_service_unlocked(_service, _instance);
 }
 
@@ -3169,7 +3173,7 @@ bool configuration_impl::check_credentials(client_t _client, uint32_t _uid,
     if (found_policy) {
         its_policies.push_back(found_policy);
     } else {
-        std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(any_client_policies_mutex_);
         its_policies = any_client_policies_;
     }
 
@@ -3241,11 +3245,11 @@ bool configuration_impl::is_client_allowed(client_t _client, service_t _service,
     else {
         must_apply = false;
         {
-            std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(any_client_policies_mutex_);
             its_policies = any_client_policies_;
         }
 
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(ids_mutex_);
         auto found_id = ids_.find(_client);
         if (found_id != ids_.end()) {
             its_uid = found_id->second.first;
@@ -3369,11 +3373,11 @@ bool configuration_impl::is_offer_allowed(client_t _client, service_t _service,
     else {
         must_apply = false;
         {
-            std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(any_client_policies_mutex_);
             its_policies = any_client_policies_;
         }
 
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(ids_mutex_);
         auto found_id = ids_.find(_client);
         if (found_id != ids_.end()) {
             its_uid = found_id->second.first;
@@ -3457,7 +3461,7 @@ bool configuration_impl::store_client_to_uid_gid_mapping(client_t _client,
                                                          uint32_t _uid, uint32_t _gid) {
     {
         // store the client -> (uid, gid) mapping
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(ids_mutex_);
         auto found_client = ids_.find(_client);
         if (found_client != ids_.end()) {
             if (found_client->second != std::make_pair(_uid, _gid)) {
@@ -3479,7 +3483,7 @@ bool configuration_impl::store_client_to_uid_gid_mapping(client_t _client,
 bool configuration_impl::get_client_to_uid_gid_mapping(client_t _client, std::pair<uint32_t, uint32_t> &_uid_gid) {
     {
         // get the UID / GID of the client
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(ids_mutex_);
         if (ids_.find(_client) != ids_.end()) {
             _uid_gid = ids_[_client];
             return true;
@@ -3493,7 +3497,7 @@ bool configuration_impl::remove_client_to_uid_gid_mapping(client_t _client) {
     bool client_removed(false);
     bool uid_gid_removed(false);
     {
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(ids_mutex_);
         auto found_client = ids_.find(_client);
         if (found_client != ids_.end()) {
             its_uid_gid = found_client->second;
@@ -3502,7 +3506,7 @@ bool configuration_impl::remove_client_to_uid_gid_mapping(client_t _client) {
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock(uid_to_clients_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(uid_to_clients_mutex_);
         if (client_removed) {
             auto found_uid_gid = uid_to_clients_.find(its_uid_gid);
             if (found_uid_gid != uid_to_clients_.end()) {
@@ -3537,7 +3541,7 @@ void configuration_impl::store_uid_gid_to_client_mapping(uint32_t _uid, uint32_t
         client_t _client) {
     {
         // store the uid gid to clients mapping
-        std::lock_guard<std::mutex> its_lock(uid_to_clients_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(uid_to_clients_mutex_);
         std::set<client_t> mapped_clients;
         if (uid_to_clients_.find(std::make_pair(_uid, _gid)) != uid_to_clients_.end()) {
             mapped_clients = uid_to_clients_[std::make_pair(_uid, _gid)];
@@ -3554,7 +3558,7 @@ bool configuration_impl::get_uid_gid_to_client_mapping(std::pair<uint32_t, uint3
         std::set<client_t> &_clients) {
     {
         // get the clients corresponding to uid, gid
-        std::lock_guard<std::mutex> its_lock(uid_to_clients_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(uid_to_clients_mutex_);
         if (uid_to_clients_.find(_uid_gid) != uid_to_clients_.end()) {
             _clients = uid_to_clients_[_uid_gid];
             return true;
@@ -4043,7 +4047,7 @@ void configuration_impl::load_offer_acceptance_required(
         const element &_element) {
     const std::string oar("offer_acceptance_required");
     try {
-        std::lock_guard<std::mutex> its_lock(offer_acceptance_required_ips_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(offer_acceptance_required_ips_mutex_);
         if (_element.tree_.get_child_optional(oar)) {
             if (is_configured_[ET_OFFER_ACCEPTANCE_REQUIRED]) {
                 VSOMEIP_WARNING << "Multiple definitions of " << oar
@@ -4105,7 +4109,7 @@ std::shared_ptr<debounce> configuration_impl::get_debounce(
 
 std::string configuration_impl::get_address_with_interface(const std::string &ip) const {
     if (boost::asio::ip::address::from_string(ip).is_v6() && ip.find ("%") == std::string::npos) {
-        return ip + "%" + interface_name_;
+        return ip + interface_name_;
     }
     return ip;
 }
@@ -4113,18 +4117,19 @@ std::string configuration_impl::get_address_with_interface(const std::string &ip
 boost::asio::ip::address_v6 configuration_impl::get_address_with_interface(const boost::asio::ip::address_v6 &ip) const {
     std::string address = ip.to_string();
     if (address.find(interface_name_) == std::string::npos) {
-        address = address + "%" + interface_name_;
+        address = address + interface_name_;
     }
     return boost::asio::ip::address_v6::from_string(address);
 }
 
 void configuration_impl::set_interface_name(const std::string &ip) {
-    struct ifaddrs *if_addr_struct = NULL;
-    getifaddrs(&if_addr_struct);
     std::string search_ip = ip;
     if (search_ip.find("%") != std::string::npos) {
         search_ip = search_ip.substr(0, search_ip.find("%"));
     }
+#ifndef _WIN32
+    struct ifaddrs *if_addr_struct = NULL;
+    getifaddrs(&if_addr_struct);
     for (struct ifaddrs *ifa = if_addr_struct; ifa != NULL; ifa = ifa->ifa_next) {
         if (!ifa->ifa_addr) {
             continue;
@@ -4141,13 +4146,41 @@ void configuration_impl::set_interface_name(const std::string &ip) {
             inet_ntop(AF_INET6, tmp_addr_ptr, address_buffer, INET6_ADDRSTRLEN);
             if (search_ip == std::string(address_buffer)){
                 VSOMEIP_INFO <<  "IP Address " << address_buffer << " is on interface " << ifa->ifa_name;
-                interface_name_ = ifa->ifa_name;
+                if (((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_scope_id == 0) {
+                {
+                    VSOMEIP_INFO <<  "Scope is global";
+                }
+                interface_name_ = std::string("%") + std::string(ifa->ifa_name);
                 break;
             }
         }
     }
     if (if_addr_struct != NULL) freeifaddrs(if_addr_struct);
+#else
+    boost::asio::io_service io_service;
+
+    boost::asio::ip::tcp::resolver resolver(io_service);
+    boost::asio::ip::tcp::resolver::query query(boost::asio::ip::host_name(),"");
+    boost::asio::ip::tcp::resolver::iterator it=resolver.resolve(query);
+
+    while(it!=boost::asio::ip::tcp::resolver::iterator())
+    {
+        boost::asio::ip::address addr=(it++)->endpoint().address();
+        if (addr.to_string().find(search_ip) != std::string::npos)
+        {
+            std::size_t pos = addr.to_string().find("%");
+            if (pos != std::string::npos) {
+                interface_name_ = addr.to_string().substr(pos);
+                VSOMEIP_INFO <<  "IP Address " << ip << " is on interface " << interface_name_;
+            }
+            else {
+                VSOMEIP_INFO <<  "Scope is global";
+            }
+        }
+    }
+#endif
 }
+
 void configuration_impl::load_tcp_restart_settings(const element &_element) {
     const std::string tcp_restart_aborts_max("tcp-restart-aborts-max");
     const std::string tcp_connect_time_max("tcp-connect-time-max");
@@ -4206,7 +4239,7 @@ std::uint32_t configuration_impl::get_max_tcp_connect_time() const {
 
 bool configuration_impl::offer_acceptance_required(
         const boost::asio::ip::address& _address) const {
-    std::lock_guard<std::mutex> its_lock(offer_acceptance_required_ips_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(offer_acceptance_required_ips_mutex_);
     return offer_acceptance_required_ips_.find(_address)
             != offer_acceptance_required_ips_.end();
 }
@@ -4214,7 +4247,7 @@ bool configuration_impl::offer_acceptance_required(
 void configuration_impl::set_offer_acceptance_required(
         const boost::asio::ip::address& _address, const std::string& _path,
         bool _enable) {
-    std::lock_guard<std::mutex> its_lock(offer_acceptance_required_ips_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(offer_acceptance_required_ips_mutex_);
     if (_enable) {
         const auto found_address = offer_acceptance_required_ips_.find(_address);
         if (found_address != offer_acceptance_required_ips_.end()) {
@@ -4233,7 +4266,7 @@ void configuration_impl::set_offer_acceptance_required(
 
 std::map<boost::asio::ip::address, std::string>
 configuration_impl::get_offer_acceptance_required() {
-    std::lock_guard<std::mutex> its_lock(offer_acceptance_required_ips_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(offer_acceptance_required_ips_mutex_);
     return offer_acceptance_required_ips_;
 }
 
@@ -4242,7 +4275,7 @@ std::uint32_t configuration_impl::get_udp_receive_buffer_size() const {
 }
 
 std::shared_ptr<policy> configuration_impl::find_client_id_policy(client_t _client) const {
-    std::lock_guard<std::mutex> its_lock(policies_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(policies_mutex_);
     for (auto client_id_pair : policies_) {
         if (std::get<0>(client_id_pair.first) <= _client
                 && _client <= std::get<1>(client_id_pair.first)) {
@@ -4253,7 +4286,7 @@ std::shared_ptr<policy> configuration_impl::find_client_id_policy(client_t _clie
 }
 
 bool configuration_impl::remove_security_policy(uint32_t _uid, uint32_t _gid) {
-    std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(any_client_policies_mutex_);
     bool was_removed(false);
     if (!any_client_policies_.empty()) {
         std::vector<std::shared_ptr<policy>>::iterator p_it = any_client_policies_.begin();
@@ -4293,7 +4326,7 @@ bool configuration_impl::remove_security_policy(uint32_t _uid, uint32_t _gid) {
 
 void configuration_impl::update_security_policy(uint32_t _uid, uint32_t _gid, ::std::shared_ptr<policy> _policy) {
     remove_security_policy(_uid, _gid);
-    std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(any_client_policies_mutex_);
     any_client_policies_.push_back(_policy);
 }
 
@@ -4301,7 +4334,7 @@ void configuration_impl::add_security_credentials(uint32_t _uid, uint32_t _gid,
         ::std::shared_ptr<policy> _credentials_policy, client_t _client) {
 
     bool was_found(false);
-    std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(any_client_policies_mutex_);
     for (auto its_policy : any_client_policies_) {
         bool has_uid(false), has_gid(false);
         for (auto its_credential : its_policy->ids_) {
@@ -4345,7 +4378,7 @@ bool configuration_impl::is_remote_client_allowed() const {
 bool configuration_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr<policy> &_policy) const {
     bool uid_allowed(false);
     {
-        std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(uid_whitelist_mutex_);
         for (auto its_uid_range : uid_whitelist_) {
             if (std::get<0>(its_uid_range) <= _uid && _uid <= std::get<1>(its_uid_range)) {
                 uid_allowed = true;
@@ -4355,7 +4388,7 @@ bool configuration_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr
     }
 
     if (uid_allowed) {
-        std::lock_guard<std::mutex> its_lock(service_interface_whitelist_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(service_interface_whitelist_mutex_);
         for (auto its_request : _policy->services_) {
             auto its_requested_service = std::get<0>(its_request);
             bool has_service(false);
@@ -4393,7 +4426,7 @@ bool configuration_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr
 }
 
 bool configuration_impl::is_policy_removal_allowed(uint32_t _uid) const {
-    std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(uid_whitelist_mutex_);
     for (auto its_uid_range : uid_whitelist_) {
         if (std::get<0>(its_uid_range) <= _uid && _uid <= std::get<1>(its_uid_range)) {
             return true;
@@ -4414,7 +4447,7 @@ bool configuration_impl::check_routing_credentials(client_t _client, uint32_t _u
     if (_client != get_id(routing_host_)) {
         return true;
     } else {
-        std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(routing_credentials_mutex_);
         if ( std::get<0>(routing_credentials_) == _uid
                 && std::get<1>(routing_credentials_) == _gid) {
             return true;

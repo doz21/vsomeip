@@ -9,7 +9,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
-#include <mutex>
+#include <boost/thread.hpp>
 #include <string>
 
 #include <vsomeip/trace.hpp>
@@ -53,7 +53,7 @@ private:
 
     std::map<filter_id_t, filter_func_t> positive_;
     std::map<filter_id_t, filter_func_t> negative_;
-    std::mutex mutex_; // protects positive_ & negative_
+    boost::mutex mutex_; // protects positive_ & negative_
 };
 
 } // namespace trace

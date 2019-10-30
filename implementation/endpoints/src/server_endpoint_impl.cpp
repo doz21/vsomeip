@@ -39,7 +39,7 @@ server_endpoint_impl<Protocol>::~server_endpoint_impl() {
 
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::stop() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     endpoint_impl<Protocol>::sending_blocked_ = true;
 }
 
@@ -79,7 +79,7 @@ template<typename Protocol>bool server_endpoint_impl<Protocol>::send(const uint
     bool is_valid_target(false);
 
     if (VSOMEIP_SESSION_POS_MAX < _size) {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
 
         if(endpoint_impl<Protocol>::sending_blocked_) {
             return false;
@@ -252,7 +252,7 @@ template<typename Protocol>
 bool server_endpoint_impl<Protocol>::flush(
         endpoint_type _target) {
     bool is_flushed = false;
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     auto queue_iterator = queues_.find(_target);
     if (queue_iterator != queues_.end() && !queue_iterator->second.second.empty()) {
         send_queued(queue_iterator);
@@ -274,7 +274,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
     (void)_bytes;
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     if (!_error) {
         _queue_iterator->second.first -=
                 _queue_iterator->second.second.front()->size();

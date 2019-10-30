@@ -7,7 +7,7 @@
 #define VSOMEIP_ROUTING_MANAGER_PROXY_HPP
 
 #include <map>
-#include <mutex>
+#include <boost/thread.hpp>
 #include <atomic>
 #include <tuple>
 
@@ -206,7 +206,7 @@ private:
     std::shared_ptr<endpoint> sender_;  // --> stub
     std::shared_ptr<endpoint> receiver_;  // --> from everybody
 
-    std::mutex known_clients_mutex_;
+    boost::mutex known_clients_mutex_;
     std::unordered_set<client_t> known_clients_;
 
     std::set<service_data_t> pending_offers_;
@@ -232,22 +232,22 @@ private:
     std::set<event_data_t> pending_event_registrations_;
 
     std::map<client_t, std::set<subscription_data_t>> pending_incoming_subscripitons_;
-    std::recursive_mutex incoming_subscriptions_mutex_;
+    boost::recursive_mutex incoming_subscriptions_mutex_;
 
-    std::mutex state_mutex_;
-    std::condition_variable state_condition_;
+    boost::mutex state_mutex_;
+    boost::condition_variable state_condition_;
 
     std::map<service_t,
                 std::map<instance_t, std::map<eventgroup_t, uint32_t > > > remote_subscriber_count_;
-    std::mutex remote_subscriber_count_mutex_;
+    boost::mutex remote_subscriber_count_mutex_;
 
-    mutable std::mutex sender_mutex_;
+    mutable boost::mutex sender_mutex_;
 
     boost::asio::steady_timer register_application_timer_;
 
     std::shared_ptr<logger> logger_;
 
-    std::mutex request_timer_mutex_;
+    boost::mutex request_timer_mutex_;
     boost::asio::steady_timer request_debounce_timer_;
     bool request_debounce_timer_running_;
 

@@ -56,7 +56,7 @@ void eventgroupinfo::set_ttl(ttl_t _ttl) {
 }
 
 bool eventgroupinfo::is_multicast() const {
-    std::lock_guard<std::mutex> its_lock(address_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(address_mutex_);
     return address_.is_multicast();
 }
 
@@ -68,7 +68,7 @@ bool eventgroupinfo::is_sending_multicast() const {
 
 bool eventgroupinfo::get_multicast(boost::asio::ip::address &_address,
         uint16_t &_port) const {
-    std::lock_guard<std::mutex> its_lock(address_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(address_mutex_);
     if (address_.is_multicast()) {
         _address = address_;
         _port = port_;
@@ -79,24 +79,24 @@ bool eventgroupinfo::get_multicast(boost::asio::ip::address &_address,
 
 void eventgroupinfo::set_multicast(const boost::asio::ip::address &_address,
         uint16_t _port) {
-    std::lock_guard<std::mutex> its_lock(address_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(address_mutex_);
     address_ = _address;
     port_ = _port;
 }
 
 const std::set<std::shared_ptr<event> > eventgroupinfo::get_events() const {
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(events_mutex_);
     return events_;
 }
 
 void eventgroupinfo::add_event(std::shared_ptr<event> _event) {
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(events_mutex_);
     events_.insert(_event);
     _event->is_reliable() ? has_reliable_ = true : has_unreliable_ = true;
 }
 
 void eventgroupinfo::remove_event(std::shared_ptr<event> _event) {
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(events_mutex_);
     events_.erase(_event);
 }
 
@@ -106,13 +106,13 @@ void eventgroupinfo::get_reliability(bool& _has_reliable, bool& _has_unreliable)
 }
 
 const std::list<eventgroupinfo::target_t> eventgroupinfo::get_targets() const {
-    std::lock_guard<std::mutex> its_lock(targets_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(targets_mutex_);
     return targets_;
 }
 
 uint32_t eventgroupinfo::get_unreliable_target_count() const {
     uint32_t _count(0);
-    std::lock_guard<std::mutex> its_lock(targets_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(targets_mutex_);
     for (auto i = targets_.begin(); i != targets_.end(); i++) {
        if (!i->endpoint_->is_reliable()) {
            _count++;
@@ -122,7 +122,7 @@ uint32_t eventgroupinfo::get_unreliable_target_count() const {
 }
 
 void eventgroupinfo::add_multicast_target(const eventgroupinfo::target_t &_multicast_target) {
-    std::lock_guard<std::mutex> its_lock(multicast_targets_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(multicast_targets_mutex_);
     if (std::find(multicast_targets_.begin(), multicast_targets_.end(), _multicast_target)
             == multicast_targets_.end()) {
         multicast_targets_.push_back(_multicast_target);
@@ -130,17 +130,17 @@ void eventgroupinfo::add_multicast_target(const eventgroupinfo::target_t &_multi
 }
 
 void eventgroupinfo::clear_multicast_targets() {
-    std::lock_guard<std::mutex> its_lock(multicast_targets_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(multicast_targets_mutex_);
     multicast_targets_.clear();
 }
 
 const std::list<eventgroupinfo::target_t> eventgroupinfo::get_multicast_targets() const {
-    std::lock_guard<std::mutex> its_lock(multicast_targets_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(multicast_targets_mutex_);
     return multicast_targets_;
 }
 
 bool eventgroupinfo::add_target(const eventgroupinfo::target_t &_target) {
-    std::lock_guard<std::mutex> its_lock(targets_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(targets_mutex_);
     std::size_t its_size = targets_.size();
     if (std::find(targets_.begin(), targets_.end(), _target) == targets_.end()) {
         targets_.push_back(_target);
@@ -154,7 +154,7 @@ bool eventgroupinfo::add_target(const eventgroupinfo::target_t &_target,
     bool add(false);
     bool ret(false);
     {
-        std::lock_guard<std::mutex> its_lock(targets_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(targets_mutex_);
         std::size_t its_size = targets_.size();
 
         for (auto i = targets_.begin(); i != targets_.end(); i++) {
@@ -181,7 +181,7 @@ bool eventgroupinfo::add_target(const eventgroupinfo::target_t &_target,
 bool eventgroupinfo::update_target(
         const std::shared_ptr<endpoint_definition> &_target,
         const std::chrono::steady_clock::time_point &_expiration) {
-    std::lock_guard<std::mutex> its_lock(targets_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(targets_mutex_);
     bool updated_target(false);
 
     for (auto i = targets_.begin(); i != targets_.end(); i++) {
@@ -198,7 +198,7 @@ bool eventgroupinfo::update_target(
 
 bool eventgroupinfo::remove_target(
         const std::shared_ptr<endpoint_definition> &_target) {
-    std::lock_guard<std::mutex> its_lock(targets_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(targets_mutex_);
     std::size_t its_size = targets_.size();
 
     for (auto i = targets_.begin(); i != targets_.end(); i++) {
@@ -214,7 +214,7 @@ bool eventgroupinfo::remove_target(
 }
 
 void eventgroupinfo::clear_targets() {
-    std::lock_guard<std::mutex> its_lock(targets_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(targets_mutex_);
     targets_.clear();
 }
 
@@ -226,13 +226,13 @@ void eventgroupinfo::set_threshold(uint8_t _threshold) {
     threshold_ = _threshold;
 }
 
-std::unique_lock<std::mutex> eventgroupinfo::get_subscription_lock() {
-    return std::unique_lock<std::mutex>(subscription_mutex_);
+boost::unique_lock<boost::mutex> eventgroupinfo::get_subscription_lock() {
+    return boost::unique_lock<boost::mutex>(subscription_mutex_);
 }
 
 pending_subscription_id_t eventgroupinfo::add_pending_subscription(
         pending_subscription_t _pending_subscription) {
-    std::lock_guard<std::mutex> its_lock(pending_subscriptions_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(pending_subscriptions_mutex_);
     if (++subscription_id_ == DEFAULT_SUBSCRIPTION) {
         subscription_id_++;
     }
@@ -259,7 +259,7 @@ pending_subscription_id_t eventgroupinfo::add_pending_subscription(
 std::vector<pending_subscription_t> eventgroupinfo::remove_pending_subscription(
         pending_subscription_id_t _subscription_id) {
     std::vector<pending_subscription_t> its_pending_subscriptions;
-    std::lock_guard<std::mutex> its_lock(pending_subscriptions_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(pending_subscriptions_mutex_);
     const auto found_pending_subscription = pending_subscriptions_.find(
             _subscription_id);
     if (found_pending_subscription != pending_subscriptions_.end()) {
@@ -344,7 +344,7 @@ std::vector<pending_subscription_t> eventgroupinfo::remove_pending_subscription(
 
 
 void eventgroupinfo::clear_pending_subscriptions() {
-    std::lock_guard<std::mutex> its_lock(pending_subscriptions_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(pending_subscriptions_mutex_);
     pending_subscriptions_.clear();
     pending_subscriptions_by_remote_.clear();
 }

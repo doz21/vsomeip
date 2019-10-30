@@ -10,7 +10,7 @@
 
 #ifdef _WIN32
     #ifndef _WINSOCKAPI_
-        #include <Windows.h>
+        #include <windows.h>
     #endif
 #else
     #include <dlfcn.h>
@@ -44,7 +44,7 @@ plugin_manager::~plugin_manager() {
 
 void plugin_manager::load_plugins() {
     {
-        std::lock_guard<std::mutex> its_lock_start_stop(loader_mutex_);
+        boost::lock_guard<boost::mutex> its_lock_start_stop(loader_mutex_);
         if (plugins_loaded_) {
             return;
         }
@@ -62,7 +62,7 @@ void plugin_manager::load_plugins() {
         }
     }
 
-    std::lock_guard<std::recursive_mutex> its_lock_start_stop(plugins_mutex_);
+    boost::lock_guard<boost::recursive_mutex> its_lock_start_stop(plugins_mutex_);
     // Load plug-in info from libraries parsed before
     for (auto plugin_name : plugins) {
         void* handle = load_library(plugin_name);
@@ -105,7 +105,7 @@ void plugin_manager::load_plugins() {
 }
 
 std::shared_ptr<plugin> plugin_manager::get_plugin(plugin_type_e _type, std::string _name) {
-    std::lock_guard<std::recursive_mutex> its_lock_start_stop(plugins_mutex_);
+    boost::lock_guard<boost::recursive_mutex> its_lock_start_stop(plugins_mutex_);
     auto its_type = plugins_.find(_type);
     if (its_type != plugins_.end()) {
         auto its_name = its_type->second.find(_name);
@@ -142,7 +142,7 @@ std::shared_ptr<plugin> plugin_manager::load_plugin(const std::string _library,
 }
 
 bool plugin_manager::unload_plugin(plugin_type_e _type) {
-    std::lock_guard<std::recursive_mutex> its_lock_start_stop(plugins_mutex_);
+    boost::lock_guard<boost::recursive_mutex> its_lock_start_stop(plugins_mutex_);
     const auto found_handle = handles_.find(_type);
     if (found_handle != handles_.end()) {
         for (auto its_name : found_handle->second) {
@@ -189,7 +189,7 @@ void * plugin_manager::load_symbol(void * _handle,
             std::cerr << "Loading symbol \"" << _symbol << "\" failed (" << GetLastError() << ")" << std::endl;
         }
         else {
-            its_symbol = lpfnDllFunc1;
+            its_symbol = (void*)lpfnDllFunc1;
         }
     }
 #else

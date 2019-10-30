@@ -10,7 +10,7 @@
 #include <set>
 #include <string>
 #include <chrono>
-#include <mutex>
+#include <boost/thread.hpp>
 
 #include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
@@ -58,14 +58,14 @@ private:
     major_version_t major_;
     minor_version_t minor_;
 
-    mutable std::mutex ttl_mutex_;
+    mutable boost::mutex ttl_mutex_;
     std::chrono::milliseconds ttl_;
 
     std::shared_ptr<endpoint> reliable_;
     std::shared_ptr<endpoint> unreliable_;
 
-    mutable std::mutex endpoint_mutex_;
-    std::mutex requesters_mutex_;
+    mutable boost::mutex endpoint_mutex_;
+    boost::mutex requesters_mutex_;
     std::set<client_t> requesters_;
 
     bool is_local_;

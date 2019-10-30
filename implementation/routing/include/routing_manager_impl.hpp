@@ -8,7 +8,7 @@
 
 #include <map>
 #include <memory>
-#include <mutex>
+#include <boost/thread.hpp>
 #include <vector>
 #include <list>
 #include <unordered_set>
@@ -456,15 +456,15 @@ private:
                             std::set<std::pair<major_version_t, minor_version_t>>>>> requested_services_;
 
     // Mutexes
-    mutable std::recursive_mutex endpoint_mutex_;
-    std::mutex identified_clients_mutex_;
-    std::mutex requested_services_mutex_;
+    mutable boost::recursive_mutex endpoint_mutex_;
+    boost::mutex identified_clients_mutex_;
+    boost::mutex requested_services_mutex_;
 
-    std::mutex remote_subscribers_mutex_;
+    boost::mutex remote_subscribers_mutex_;
     std::map<service_t, std::map<instance_t, std::map<client_t,
         std::set<std::shared_ptr<endpoint_definition>>>>> remote_subscribers_;
 
-    std::mutex specific_endpoint_clients_mutex_;
+    boost::mutex specific_endpoint_clients_mutex_;
     std::map<service_t, std::map<instance_t, std::unordered_set<client_t>>>specific_endpoint_clients_;
     std::map<service_t, std::map<instance_t,
         std::map<bool, std::unordered_set<client_t> > > > identified_clients_;
@@ -474,27 +474,27 @@ private:
     std::shared_ptr<serviceinfo> sd_info_;
 
     std::map<bool, std::set<uint16_t>> used_client_ports_;
-    std::mutex used_client_ports_mutex_;
+    boost::mutex used_client_ports_mutex_;
 
-    std::mutex version_log_timer_mutex_;
+    boost::mutex version_log_timer_mutex_;
     boost::asio::steady_timer version_log_timer_;
 
     bool if_state_running_;
     bool sd_route_set_;
     bool routing_running_;
-    std::mutex pending_sd_offers_mutex_;
+    boost::mutex pending_sd_offers_mutex_;
     std::vector<std::pair<service_t, instance_t>> pending_sd_offers_;
 #ifndef _WIN32
     std::shared_ptr<netlink_connector> netlink_connector_;
 #endif
 
 #ifndef WITHOUT_SYSTEMD
-    std::mutex watchdog_timer_mutex_;
+    boost::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;
     void watchdog_cbk(boost::system::error_code const &_error);
 #endif
 
-    std::mutex pending_offers_mutex_;
+    boost::mutex pending_offers_mutex_;
     // map to store pending offers.
     // 1st client id in tuple: client id of new offering application
     // 2nd client id in tuple: client id of previously/stored offering application
@@ -503,39 +503,39 @@ private:
                 std::tuple<major_version_t, minor_version_t,
                             client_t, client_t>>> pending_offers_;
 
-    std::mutex pending_subscription_mutex_;
+    boost::mutex pending_subscription_mutex_;
 
-    std::mutex remote_subscription_state_mutex_;
+    boost::mutex remote_subscription_state_mutex_;
     std::map<std::tuple<service_t, instance_t, eventgroup_t, client_t>,
         subscription_state_e> remote_subscription_state_;
 
     std::map<e2exf::data_identifier_t, std::shared_ptr<e2e::profile_interface::protector>> custom_protectors;
     std::map<e2exf::data_identifier_t, std::shared_ptr<e2e::profile_interface::checker>> custom_checkers;
 
-    std::mutex status_log_timer_mutex_;
+    boost::mutex status_log_timer_mutex_;
     boost::asio::steady_timer status_log_timer_;
 
-    std::mutex memory_log_timer_mutex_;
+    boost::mutex memory_log_timer_mutex_;
     boost::asio::steady_timer memory_log_timer_;
 
     routing_ready_handler_t routing_ready_handler_;
     routing_state_handler_t routing_state_handler_;
 
-    std::mutex pending_remote_offers_mutex_;
+    boost::mutex pending_remote_offers_mutex_;
     pending_remote_offer_id_t pending_remote_offer_id_;
     std::map<pending_remote_offer_id_t, std::pair<service_t, instance_t>> pending_remote_offers_;
 
-    std::mutex last_resume_mutex_;
+    boost::mutex last_resume_mutex_;
     std::chrono::steady_clock::time_point last_resume_;
 
-    std::mutex pending_security_updates_mutex_;
+    boost::mutex pending_security_updates_mutex_;
     pending_security_update_id_t pending_security_update_id_;
     std::map<pending_security_update_id_t, std::unordered_set<client_t>> pending_security_updates_;
 
-    std::recursive_mutex security_update_handlers_mutex_;
+    boost::recursive_mutex security_update_handlers_mutex_;
     std::map<pending_security_update_id_t, security_update_handler_t> security_update_handlers_;
 
-    std::mutex security_update_timers_mutex_;
+    boost::mutex security_update_timers_mutex_;
     std::map<pending_security_update_id_t, std::shared_ptr<boost::asio::steady_timer>> security_update_timers_;
 };
 

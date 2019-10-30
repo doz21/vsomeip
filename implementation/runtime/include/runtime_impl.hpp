@@ -8,7 +8,7 @@
 
 #include <vsomeip/runtime.hpp>
 #include <map>
-#include <mutex>
+#include <boost/thread.hpp>
 
 namespace vsomeip {
 
@@ -48,7 +48,7 @@ private:
 
     std::map<std::string, std::weak_ptr<application>> applications_;
 
-    mutable std::mutex applications_mutex_;
+    mutable boost::mutex applications_mutex_;
     static uint32_t postfix_id;
 };
 

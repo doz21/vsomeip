@@ -144,17 +144,17 @@ void service_discovery_impl::start() {
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock(sessions_received_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(sessions_received_mutex_);
         sessions_received_.clear();
     }
     {
-        std::lock_guard<std::mutex> its_lock(serialize_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(serialize_mutex_);
         sessions_sent_.clear();
     }
 
     if (is_suspended_) {
         // make sure to sent out FindService messages after resume
-        std::lock_guard<std::mutex> its_lock(requested_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(requested_mutex_);
         for (const auto &s : requested_) {
             for (const auto &i : s.second) {
                 i.second->set_sent_counter(0);
@@ -181,7 +181,7 @@ void service_discovery_impl::stop() {
 void service_discovery_impl::request_service(service_t _service,
         instance_t _instance, major_version_t _major, minor_version_t _minor,
         ttl_t _ttl) {
-    std::lock_guard<std::mutex> its_lock(requested_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(requested_mutex_);
     auto find_service = requested_.find(_service);
     if (find_service != requested_.end()) {
         auto find_instance = find_service->second.find(_instance);
@@ -197,7 +197,7 @@ void service_discovery_impl::request_service(service_t _service,
 
 void service_discovery_impl::release_service(service_t _service,
         instance_t _instance) {
-    std::lock_guard<std::mutex> its_lock(requested_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(requested_mutex_);
     auto find_service = requested_.find(_service);
     if (find_service != requested_.end()) {
         find_service->second.erase(_instance);
@@ -206,7 +206,7 @@ void service_discovery_impl::release_service(service_t _service,
 
 std::shared_ptr<request>
 service_discovery_impl::find_request(service_t _service, instance_t _instance) {
-    std::lock_guard<std::mutex> its_lock(requested_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(requested_mutex_);
     auto find_service = requested_.find(_service);
     if (find_service != requested_.end()) {
         auto find_instance = find_service->second.find(_instance);
@@ -222,7 +222,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
         subscription_type_e _subscription_type) {
     uint8_t subscribe_count(0);
     {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -265,7 +265,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
     }
     std::shared_ptr<message_impl> its_message = its_runtime->create_message();
     {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(subscribed_mutex_);
         // New subscription
         std::shared_ptr < subscription > its_subscription = std::make_shared
                 < subscription > (_major, _ttl, its_reliable, its_unreliable,
@@ -377,7 +377,7 @@ void service_discovery_impl::unsubscribe(service_t _service,
     boost::asio::ip::address its_address;
     bool has_address(false);
     {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(subscribed_mutex_);
         std::shared_ptr < subscription > its_subscription;
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
@@ -431,7 +431,7 @@ void service_discovery_impl::unsubscribe(service_t _service,
 }
 
 void service_discovery_impl::unsubscribe_all(service_t _service, instance_t _instance) {
-    std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -452,7 +452,7 @@ void service_discovery_impl::unsubscribe_client(service_t _service,
     boost::asio::ip::address its_address;
     bool has_address(false);
     {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(subscribed_mutex_);
         std::shared_ptr < subscription > its_subscription;
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
@@ -739,7 +739,7 @@ void service_discovery_impl::insert_option(
 void service_discovery_impl::insert_find_entries(
         std::shared_ptr<message_impl> &_message, const requests_t &_requests,
         uint32_t _start, uint32_t &_size, bool &_done) {
-    std::lock_guard<std::mutex> its_lock(requested_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(requested_mutex_);
     uint32_t its_size(0);
     uint32_t i = 0;
 
@@ -1031,7 +1031,7 @@ void service_discovery_impl::insert_subscription_ack(
         const std::shared_ptr<eventgroupinfo> &_info, ttl_t _ttl,
         uint8_t _counter, major_version_t _major, uint16_t _reserved,
         const std::shared_ptr<endpoint_definition> &_target) {
-    std::unique_lock<std::mutex> its_lock(_message->get_message_lock());
+    boost::unique_lock<boost::mutex> its_lock(_message->get_message_lock());
     _message->increase_number_contained_acks();
     for (auto its_entry : _message->get_entries()) {
         if (its_entry->is_eventgroup_entry()) {
@@ -1088,7 +1088,7 @@ void service_discovery_impl::insert_subscription_nack(
         std::shared_ptr<message_impl> &_message, service_t _service,
                 instance_t _instance, eventgroup_t _eventgroup,
                 uint8_t _counter, major_version_t _major, uint16_t _reserved) {
-    std::unique_lock<std::mutex> its_lock(_message->get_message_lock());
+    boost::unique_lock<boost::mutex> its_lock(_message->get_message_lock());
     std::shared_ptr < eventgroupentry_impl > its_entry =
             _message->create_eventgroup_entry();
     // SWS_SD_00316 and SWS_SD_00385
@@ -1114,7 +1114,7 @@ bool service_discovery_impl::send(bool _is_announcing) {
             its_message = its_runtime->create_message();
             its_messages.push_back(its_message);
 
-            std::lock_guard<std::mutex> its_lock(offer_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(offer_mutex_);
             services_t its_offers = host_->get_offered_services();
             fill_message_with_offer_entries(its_runtime, its_message,
                     its_messages, its_offers, false);
@@ -1137,8 +1137,8 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
     msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
-    std::lock_guard<std::mutex> its_lock(check_ttl_mutex_);
-    std::lock_guard<std::mutex> its_session_lock(sessions_received_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(check_ttl_mutex_);
+    boost::lock_guard<boost::mutex> its_session_lock(sessions_received_mutex_);
 
     if(is_suspended_) {
         return;
@@ -1148,7 +1148,7 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
         return;
     }
     if (_destination == sd_multicast_address_) {
-        std::lock_guard<std::mutex> its_lock(last_msg_received_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(last_msg_received_timer_mutex_);
         boost::system::error_code ec;
         last_msg_received_timer_.cancel(ec);
         last_msg_received_timer_.expires_from_now(last_msg_received_timer_timeout_, ec);
@@ -1281,7 +1281,7 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
         if (its_required_acks || its_message_response->get_number_required_acks() > 0) {
             bool sent(false);
             {
-                std::lock_guard<std::mutex> its_lock(response_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(response_mutex_);
                 if (its_message_response->all_required_acks_contained()) {
                     update_subscription_expiration_timer(its_message_response);
                     serialize_and_send(its_message_response, _sender);
@@ -1420,7 +1420,7 @@ void service_discovery_impl::process_serviceentry(
     } else if (_accept_offers) {
         std::shared_ptr<request> its_request = find_request(its_service, its_instance);
         if (its_request) {
-            std::lock_guard<std::mutex> its_lock(requested_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(requested_mutex_);
             // ID: SIP_SD_830
             its_request->set_sent_counter(std::uint8_t(repetitions_max_ + 1));
         }
@@ -1450,7 +1450,7 @@ void service_discovery_impl::process_offerservice_serviceentry(
 
     std::shared_ptr<request> its_request = find_request(_service, _instance);
     if (its_request) {
-        std::lock_guard<std::mutex> its_lock(requested_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(requested_mutex_);
         its_request->set_sent_counter(std::uint8_t(repetitions_max_ + 1));
     }
     remote_offer_type_e offer_type(remote_offer_type_e::UNKNOWN);
@@ -1497,7 +1497,7 @@ void service_discovery_impl::process_offerservice_serviceentry(
         }
     };
 
-    std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -1717,7 +1717,7 @@ void service_discovery_impl::send_multicast_offer_service(
                         its_size);
 
                 if (its_message->get_entries().size() > 0) {
-                    std::lock_guard<std::mutex> its_lock(serialize_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(serialize_mutex_);
                     std::pair<session_t, bool> its_session = get_session(
                             unicast_);
                     its_message->set_session(its_session.first);
@@ -1747,7 +1747,7 @@ void service_discovery_impl::on_endpoint_connected(
     boost::asio::ip::address its_address;
 
     {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -2568,7 +2568,7 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
                             subscriber_->reserved_ = _reserved;
                             subscriber_->counter_ = _counter;
 
-                            std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+                            boost::lock_guard<boost::mutex> its_lock(pending_remote_subscriptions_mutex_);
                             pending_remote_subscriptions_[_service]
                                                          [_instance]
                                                          [_eventgroup]
@@ -2585,7 +2585,7 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
 void service_discovery_impl::handle_eventgroup_subscription_nack(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, uint8_t _counter) {
     client_t nackedClient = 0;
-    std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -2628,7 +2628,7 @@ void service_discovery_impl::handle_eventgroup_subscription_ack(
         const boost::asio::ip::address &_address, uint16_t _port) {
     (void)_major;
     (void)_ttl;
-    std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -2672,7 +2672,7 @@ bool service_discovery_impl::is_tcp_connected(service_t _service,
 void service_discovery_impl::serialize_and_send(
         std::shared_ptr<message_impl> _message,
         const boost::asio::ip::address &_address) {
-    std::lock_guard<std::mutex> its_lock(serialize_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(serialize_mutex_);
     std::pair<session_t, bool> its_session = get_session(_address);
     _message->set_session(its_session.first);
     _message->set_reboot_flag(its_session.second);
@@ -2691,7 +2691,7 @@ void service_discovery_impl::serialize_and_send(
 }
 
 void service_discovery_impl::start_ttl_timer() {
-    std::lock_guard<std::mutex> its_lock(ttl_timer_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(ttl_timer_mutex_);
     boost::system::error_code ec;
     ttl_timer_.expires_from_now(std::chrono::milliseconds(ttl_timer_runtime_), ec);
     ttl_timer_.async_wait(
@@ -2700,7 +2700,7 @@ void service_discovery_impl::start_ttl_timer() {
 }
 
 void service_discovery_impl::stop_ttl_timer() {
-    std::lock_guard<std::mutex> its_lock(ttl_timer_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(ttl_timer_mutex_);
     boost::system::error_code ec;
     ttl_timer_.cancel(ec);
 }
@@ -2708,7 +2708,7 @@ void service_discovery_impl::stop_ttl_timer() {
 void service_discovery_impl::check_ttl(const boost::system::error_code &_error) {
     if (!_error) {
         {
-            std::lock_guard<std::mutex> its_lock(check_ttl_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(check_ttl_mutex_);
             host_->update_routing_info(ttl_timer_runtime_);
         }
         start_ttl_timer();
@@ -2755,7 +2755,7 @@ void service_discovery_impl::send_subscriptions(service_t _service, instance_t _
     std::forward_list<std::pair<std::shared_ptr<message_impl>,
                                 const boost::asio::ip::address>> subscription_messages;
     {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -2854,7 +2854,7 @@ void service_discovery_impl::send_subscriptions(service_t _service, instance_t _
 }
 
 void service_discovery_impl::start_subscription_expiration_timer() {
-    std::lock_guard<std::mutex> its_lock(subscription_expiration_timer_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(subscription_expiration_timer_mutex_);
     start_subscription_expiration_timer_unlocked();
 }
 
@@ -2867,7 +2867,7 @@ void service_discovery_impl::start_subscription_expiration_timer_unlocked() {
 }
 
 void service_discovery_impl::stop_subscription_expiration_timer() {
-    std::lock_guard<std::mutex> its_lock(subscription_expiration_timer_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(subscription_expiration_timer_mutex_);
     stop_subscription_expiration_timer_unlocked();
 }
 
@@ -2918,7 +2918,7 @@ bool service_discovery_impl::check_ipv4_address(
 void service_discovery_impl::offer_service(service_t _service,
                                            instance_t _instance,
                                            std::shared_ptr<serviceinfo> _info) {
-    std::lock_guard<std::mutex> its_lock(collected_offers_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(collected_offers_mutex_);
     // check if offer is in map
     bool found(false);
     const auto its_service = collected_offers_.find(_service);
@@ -2934,7 +2934,7 @@ void service_discovery_impl::offer_service(service_t _service,
 }
 
 void service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
-    std::lock_guard<std::mutex> its_lock(offer_debounce_timer_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(offer_debounce_timer_mutex_);
     boost::system::error_code ec;
     if (_first_start) {
         offer_debounce_timer_.expires_from_now(initial_delay_, ec);
@@ -2954,7 +2954,7 @@ void service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
 
 
 void service_discovery_impl::start_find_debounce_timer(bool _first_start) {
-    std::lock_guard<std::mutex> its_lock(find_debounce_timer_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(find_debounce_timer_mutex_);
     boost::system::error_code ec;
     if (_first_start) {
         find_debounce_timer_.expires_from_now(initial_delay_, ec);
@@ -2982,7 +2982,7 @@ void service_discovery_impl::on_find_debounce_timer_expired(
     requests_t repetition_phase_finds;
     bool new_finds(false);
     {
-        std::lock_guard<std::mutex> its_lock(requested_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(requested_mutex_);
         for (const auto its_service : requested_) {
             for (const auto its_instance : its_service.second) {
                 if( its_instance.second->get_sent_counter() == 0) {
@@ -3019,7 +3019,7 @@ void service_discovery_impl::on_find_debounce_timer_expired(
     std::shared_ptr<boost::asio::steady_timer> its_timer = std::make_shared<
             boost::asio::steady_timer>(host_->get_io());
     {
-        std::lock_guard<std::mutex> its_lock(find_repetition_phase_timers_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(find_repetition_phase_timers_mutex_);
         find_repetition_phase_timers_[its_timer] = repetition_phase_finds;
     }
 
@@ -3048,7 +3048,7 @@ void service_discovery_impl::on_offer_debounce_timer_expired(
     bool new_offers(false);
     {
         std::vector<services_t::iterator> non_someip_services;
-        std::lock_guard<std::mutex> its_lock(collected_offers_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(collected_offers_mutex_);
         if (collected_offers_.size()) {
             if (is_diagnosis_) {
                 for (services_t::iterator its_service = collected_offers_.begin();
@@ -3110,7 +3110,7 @@ void service_discovery_impl::on_offer_debounce_timer_expired(
             boost::asio::steady_timer>(host_->get_io());
 
     {
-        std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(repetition_phase_timers_mutex_);
         repetition_phase_timers_[its_timer] = repetition_phase_offers;
     }
 
@@ -3136,12 +3136,12 @@ void service_discovery_impl::on_repetition_phase_timer_expired(
         return;
     }
     if (_repetition == 0) {
-        std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(repetition_phase_timers_mutex_);
         // we waited one cyclic offer delay, the offers can now be sent in the
         // main phase and the timer can be deleted
         move_offers_into_main_phase(_timer);
     } else {
-        std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(repetition_phase_timers_mutex_);
         auto its_timer_pair = repetition_phase_timers_.find(_timer);
         if (its_timer_pair != repetition_phase_timers_.end()) {
             std::chrono::milliseconds new_delay(0);
@@ -3208,7 +3208,7 @@ void service_discovery_impl::on_find_repetition_phase_timer_expired(
         return;
     }
 
-    std::lock_guard<std::mutex> its_lock(find_repetition_phase_timers_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(find_repetition_phase_timers_mutex_);
     auto its_timer_pair = find_repetition_phase_timers_.find(_timer);
     if (its_timer_pair != find_repetition_phase_timers_.end()) {
         std::chrono::milliseconds new_delay(0);
@@ -3310,7 +3310,7 @@ bool service_discovery_impl::serialize_and_send_messages(
     bool has_sent(false);
     // lock serialize mutex here as well even if we don't use the
     // serializer as it's used to guard access to the sessions_sent_ map
-    std::lock_guard<std::mutex> its_lock(serialize_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(serialize_mutex_);
     for (const auto m : _messages) {
         if (m->get_entries().size() > 0) {
             std::pair<session_t, bool> its_session = get_session(unicast_);
@@ -3328,12 +3328,12 @@ bool service_discovery_impl::serialize_and_send_messages(
 void service_discovery_impl::stop_offer_service(
         service_t _service, instance_t _instance,
         std::shared_ptr<serviceinfo> _info) {
-    std::lock_guard<std::mutex> its_lock(offer_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(offer_mutex_);
     _info->set_ttl(0);
     bool stop_offer_required(false);
     // delete from initial phase offers
     {
-        std::lock_guard<std::mutex> its_lock(collected_offers_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(collected_offers_mutex_);
         if (collected_offers_.size()) {
             auto its_service = collected_offers_.find(_service);
             if (its_service != collected_offers_.end()) {
@@ -3355,7 +3355,7 @@ void service_discovery_impl::stop_offer_service(
 
     // delete from repetition phase offers
     {
-        std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(repetition_phase_timers_mutex_);
         for (auto rpt = repetition_phase_timers_.begin();
                 rpt != repetition_phase_timers_.end();) {
             auto its_service = rpt->second.find(_service);
@@ -3408,7 +3408,7 @@ bool service_discovery_impl::send_stop_offer(
 }
 
 void service_discovery_impl::start_main_phase_timer() {
-    std::lock_guard<std::mutex> its_lock(main_phase_timer_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(main_phase_timer_mutex_);
     boost::system::error_code ec;
     main_phase_timer_.expires_from_now(cyclic_offer_delay_);
     if (ec) {
@@ -3448,7 +3448,7 @@ bool service_discovery_impl::last_offer_shorter_half_offer_delay_ago() {
     //get remaining time to next offer since last offer
     std::chrono::milliseconds remaining(0);
     {
-        std::lock_guard<std::mutex> its_lock(main_phase_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(main_phase_timer_mutex_);
         remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
                 main_phase_timer_.expires_from_now());
     }
@@ -3487,7 +3487,7 @@ void service_discovery_impl::remote_subscription_acknowledge(
         const std::shared_ptr<sd_message_identifier_t> &_sd_message_id) {
     std::shared_ptr<subscriber_t> its_subscriber;
     {
-        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(pending_remote_subscriptions_mutex_);
         const auto its_service = pending_remote_subscriptions_.find(_service);
         if (its_service != pending_remote_subscriptions_.end()) {
             const auto its_instance = its_service->second.find(_instance);
@@ -3534,12 +3534,12 @@ void service_discovery_impl::remote_subscription_acknowledge(
 
 void service_discovery_impl::update_subscription_expiration_timer(
         const std::shared_ptr<message_impl> &_message) {
-    std::lock_guard<std::mutex> its_lock(subscription_expiration_timer_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(subscription_expiration_timer_mutex_);
     const std::chrono::steady_clock::time_point now =
             std::chrono::steady_clock::now();
     stop_subscription_expiration_timer_unlocked();
 
-    std::unique_lock<std::mutex> its_message_lock(_message->get_message_lock());
+    boost::unique_lock<boost::mutex> its_message_lock(_message->get_message_lock());
     for (const auto &entry : _message->get_entries()) {
         if (entry && entry->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP_ACK
                 && entry->get_ttl()) {
@@ -3564,7 +3564,7 @@ void service_discovery_impl::remote_subscription_acknowledge_subscriber(
     std::shared_ptr<message_impl> its_response = _subscriber->response_message_id_->response_;
     bool sent(false);
     {
-        std::lock_guard<std::mutex> its_lock(response_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(response_mutex_);
         if (_acknowledged) {
             insert_subscription_ack(its_response, _service, _instance,
                     _eventgroup, _subscriber->eventgroupinfo_,
@@ -3604,7 +3604,7 @@ void service_discovery_impl::remote_subscription_not_acknowledge_all(
         service_t _service, instance_t _instance) {
     std::map<eventgroup_t, std::vector<std::shared_ptr<subscriber_t>>>its_pending_subscriptions;
     {
-        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(pending_remote_subscriptions_mutex_);
         const auto its_service = pending_remote_subscriptions_.find(_service);
         if (its_service != pending_remote_subscriptions_.end()) {
             const auto its_instance = its_service->second.find(_instance);
@@ -3638,7 +3638,7 @@ void service_discovery_impl::remote_subscription_not_acknowledge_all() {
         std::map<instance_t,
             std::map<eventgroup_t, std::vector<std::shared_ptr<subscriber_t>>>>> to_be_nacked;
     {
-        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(pending_remote_subscriptions_mutex_);
         for (const auto &its_service : pending_remote_subscriptions_) {
             for (const auto &its_instance : its_service.second) {
                 for (const auto &its_eventgroup : its_instance.second) {
@@ -3709,7 +3709,7 @@ void service_discovery_impl::on_last_msg_received_timer_expired(
         }
         {
             boost::system::error_code ec;
-            std::lock_guard<std::mutex> its_lock(last_msg_received_timer_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(last_msg_received_timer_mutex_);
             last_msg_received_timer_.expires_from_now(last_msg_received_timer_timeout_, ec);
             last_msg_received_timer_.async_wait(
                     std::bind(
@@ -3720,14 +3720,14 @@ void service_discovery_impl::on_last_msg_received_timer_expired(
 }
 
 void service_discovery_impl::stop_last_msg_received_timer() {
-    std::lock_guard<std::mutex> its_lock(last_msg_received_timer_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(last_msg_received_timer_mutex_);
     boost::system::error_code ec;
     last_msg_received_timer_.cancel(ec);
 }
 
 service_discovery_impl::remote_offer_type_e service_discovery_impl::get_remote_offer_type(
         service_t _service, instance_t _instance) {
-    std::lock_guard<std::mutex> its_lock(remote_offer_types_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(remote_offer_types_mutex_);
     auto found_si = remote_offer_types_.find(std::make_pair(_service, _instance));
     if (found_si != remote_offer_types_.end()) {
         return found_si->second;
@@ -3741,7 +3741,7 @@ bool service_discovery_impl::update_remote_offer_type(
         const boost::asio::ip::address &_reliable_address,
         const boost::asio::ip::address &_unreliable_address) {
     bool ret(false);
-    std::lock_guard<std::mutex> its_lock(remote_offer_types_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(remote_offer_types_mutex_);
     const std::pair<service_t, instance_t> its_si_pair = std::make_pair(_service, _instance);
     auto found_si = remote_offer_types_.find(its_si_pair);
     if (found_si != remote_offer_types_.end()) {
@@ -3776,7 +3776,7 @@ bool service_discovery_impl::update_remote_offer_type(
 void service_discovery_impl::remove_remote_offer_type(
         service_t _service, instance_t _instance,
         const boost::asio::ip::address &_address) {
-    std::lock_guard<std::mutex> its_lock(remote_offer_types_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(remote_offer_types_mutex_);
     const std::pair<service_t, instance_t> its_si_pair =
             std::make_pair(_service, _instance);
     remote_offer_types_.erase(its_si_pair);
@@ -3788,7 +3788,7 @@ void service_discovery_impl::remove_remote_offer_type(
 
 void service_discovery_impl::remove_remote_offer_type_by_ip(
         const boost::asio::ip::address &_address) {
-    std::lock_guard<std::mutex> its_lock(remote_offer_types_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(remote_offer_types_mutex_);
     auto found_services = remote_offers_by_ip_.find(_address);
     if (found_services != remote_offers_by_ip_.end()) {
         for (const auto& si : found_services->second) {

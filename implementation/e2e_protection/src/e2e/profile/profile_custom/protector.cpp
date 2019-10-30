@@ -18,7 +18,7 @@ namespace e2e {
 namespace profile_custom {
 
 void protector::protect(e2e_buffer &_buffer) {
-    std::lock_guard<std::mutex> lock(protect_mutex_);
+    boost::lock_guard<boost::mutex> lock(protect_mutex_);
 
     if (profile_custom::is_buffer_length_valid(config_, _buffer)) {
         // compute the CRC over DataID and Data

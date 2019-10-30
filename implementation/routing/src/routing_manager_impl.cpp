@@ -171,7 +171,7 @@ void routing_manager_impl::start() {
     netlink_connector_->start();
 #else
     {
-        std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(pending_sd_offers_mutex_);
         start_ip_routing();
     }
 #endif
@@ -180,7 +180,7 @@ void routing_manager_impl::start() {
     host_->on_state(state_type_e::ST_REGISTERED);
 
     if (configuration_->log_version()) {
-        std::lock_guard<std::mutex> its_lock(version_log_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(version_log_timer_mutex_);
         version_log_timer_.expires_from_now(
                 std::chrono::seconds(0));
         version_log_timer_.async_wait(std::bind(&routing_manager_impl::log_version_timer_cbk,
@@ -189,7 +189,7 @@ void routing_manager_impl::start() {
 
 #ifndef WITHOUT_SYSTEMD
     {
-        std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(watchdog_timer_mutex_);
         watchdog_timer_.expires_from_now(std::chrono::seconds(0));
         watchdog_timer_.async_wait(std::bind(&routing_manager_impl::watchdog_cbk,
         this, std::placeholders::_1));
@@ -197,7 +197,7 @@ void routing_manager_impl::start() {
 #endif
 #ifndef _WIN32
     if (configuration_->log_memory()) {
-        std::lock_guard<std::mutex> its_lock(memory_log_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(memory_log_timer_mutex_);
         boost::system::error_code ec;
         memory_log_timer_.expires_from_now(std::chrono::seconds(0), ec);
         memory_log_timer_.async_wait(
@@ -206,7 +206,7 @@ void routing_manager_impl::start() {
     }
 #endif
     if (configuration_->log_status()) {
-        std::lock_guard<std::mutex> its_lock(status_log_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(status_log_timer_mutex_);
         boost::system::error_code ec;
         status_log_timer_.expires_from_now(std::chrono::seconds(0), ec);
         status_log_timer_.async_wait(
@@ -217,13 +217,13 @@ void routing_manager_impl::start() {
 
 void routing_manager_impl::stop() {
     {
-        std::lock_guard<std::mutex> its_lock(version_log_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(version_log_timer_mutex_);
         version_log_timer_.cancel();
     }
 #ifndef _WIN32
     {
         boost::system::error_code ec;
-        std::lock_guard<std::mutex> its_lock(memory_log_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(memory_log_timer_mutex_);
         memory_log_timer_.cancel(ec);
     }
     if (netlink_connector_) {
@@ -232,13 +232,13 @@ void routing_manager_impl::stop() {
 #endif
 
     {
-        std::lock_guard<std::mutex> its_lock(status_log_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(status_log_timer_mutex_);
         boost::system::error_code ec;
         status_log_timer_.cancel(ec);
     }
 #ifndef WITHOUT_SYSTEMD
     {
-        std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(watchdog_timer_mutex_);
         watchdog_timer_.cancel();
     }
     sd_notify(0, "STOPPING=1");
@@ -271,7 +271,7 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service,
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(pending_sd_offers_mutex_);
         if (if_state_running_) {
             init_service_info(_service, _instance, true);
         } else {
@@ -287,7 +287,7 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service,
     }
 
     {
-        std::lock_guard<std::mutex> ist_lock(pending_subscription_mutex_);
+        boost::lock_guard<boost::mutex> ist_lock(pending_subscription_mutex_);
         std::set<event_t> its_already_subscribed_events;
         for (auto &ps : pending_subscriptions_) {
             if (ps.service_ == _service &&
@@ -319,7 +319,7 @@ void routing_manager_impl::stop_offer_service(client_t _client,
     }
     if (is_local) {
         {
-            std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(pending_sd_offers_mutex_);
             for (auto it = pending_sd_offers_.begin(); it != pending_sd_offers_.end(); ) {
                 if (it->first == _service && it->second == _instance) {
                     it = pending_sd_offers_.erase(it);
@@ -394,7 +394,7 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
     }
 
     if (_use_exclusive_proxy) {
-        std::lock_guard<std::mutex> its_lock(specific_endpoint_clients_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(specific_endpoint_clients_mutex_);
         specific_endpoint_clients_[_service][_instance].insert(_client);
     }
 
@@ -417,7 +417,7 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
         << std::hex << std::setw(4) << std::setfill('0') << _instance << "]";
 
     if (host_->get_client() == _client) {
-        std::lock_guard<std::mutex> its_lock(pending_subscription_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(pending_subscription_mutex_);
         remove_pending_subscription(_service, _instance, 0xFFFF, ANY_EVENT);
     }
     routing_manager_base::release_service(_client, _service, _instance);
@@ -501,7 +501,7 @@ void routing_manager_impl::subscribe(client_t _client, service_t _service,
                     }
                 }
             }
-            std::unique_lock<std::mutex> eventgroup_lock;
+            boost::unique_lock<boost::mutex> eventgroup_lock;
             auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
             if (its_eventgroup) {
                 eventgroup_lock = its_eventgroup->get_subscription_lock();
@@ -530,7 +530,7 @@ void routing_manager_impl::subscribe(client_t _client, service_t _service,
                 eventgroup_lock.unlock();
             }
             if (get_client() == _client) {
-                std::lock_guard<std::mutex> ist_lock(pending_subscription_mutex_);
+                boost::lock_guard<boost::mutex> ist_lock(pending_subscription_mutex_);
                 subscription_data_t subscription = { _service, _instance, _eventgroup, _major,
                         _event, _subscription_type};
                 pending_subscriptions_.insert(subscription);
@@ -577,7 +577,7 @@ void routing_manager_impl::unsubscribe(client_t _client, service_t _service,
             if (subscriber == VSOMEIP_ROUTING_CLIENT && last_subscriber_removed) {
                 {
                     auto tuple = std::make_tuple(_service, _instance, _eventgroup, subscriber);
-                    std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(remote_subscription_state_mutex_);
                     remote_subscription_state_.erase(tuple);
                 }
                 // for normal subscribers only unsubscribe via SD  if last
@@ -586,7 +586,7 @@ void routing_manager_impl::unsubscribe(client_t _client, service_t _service,
             } else if (subscriber != VSOMEIP_ROUTING_CLIENT) {
                 {
                     auto tuple = std::make_tuple(_service, _instance, _eventgroup, subscriber);
-                    std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(remote_subscription_state_mutex_);
                     remote_subscription_state_.erase(tuple);
                 }
                 // for selective subscribers always unsubscribe at the SD
@@ -594,7 +594,7 @@ void routing_manager_impl::unsubscribe(client_t _client, service_t _service,
             }
         } else {
             if (get_client() == _client) {
-                std::lock_guard<std::mutex> ist_lock(pending_subscription_mutex_);
+                boost::lock_guard<boost::mutex> ist_lock(pending_subscription_mutex_);
                 remove_pending_subscription(_service, _instance, _eventgroup, _event);
                 stub_->send_unsubscribe(find_local(_service, _instance),
                         _client, _service, _instance, _eventgroup, _event,
@@ -863,7 +863,7 @@ bool routing_manager_impl::send_to(
         const std::shared_ptr<endpoint_definition> &_target,
         std::shared_ptr<message> _message, bool _flush) {
     bool is_sent(false);
-    std::lock_guard<std::mutex> its_lock(serialize_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(serialize_mutex_);
     if (serializer_->serialize(_message.get())) {
         const byte_t *_data = serializer_->get_data();
         length_t _size = serializer_->get_size();
@@ -1013,7 +1013,7 @@ void routing_manager_impl::notify_one(service_t _service, instance_t _instance,
                 // Now set event's payload!
                 // Either with endpoint_definition (remote) or with client (local).
                 {
-                    std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(remote_subscribers_mutex_);
                     auto its_service = remote_subscribers_.find(_service);
                     if (its_service != remote_subscribers_.end()) {
                         auto its_instance = its_service->second.find(_instance);
@@ -1065,7 +1065,7 @@ void routing_manager_impl::on_error(
 }
 
 void routing_manager_impl::release_port(uint16_t _port, bool _reliable) {
-    std::lock_guard<std::mutex> its_lock(used_client_ports_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(used_client_ports_mutex_);
     used_client_ports_[_reliable].erase(_port);
 }
 
@@ -1405,7 +1405,7 @@ void routing_manager_impl::on_notification(client_t _client,
                     // new subscribers will be notified by SD via sent_initiale_events;
                     if (its_event->get_remote_notification_pending()) {
                         // Set payload first time ~> notify all remote subscriber per unicast (initial field)
-                        std::vector<std::unique_lock<std::mutex>> its_locks;
+                        std::vector<boost::unique_lock<boost::mutex>> its_locks;
                         std::vector<std::shared_ptr<eventgroupinfo>> its_eventgroupinfos;
                         for (auto its_group : its_event->get_eventgroups()) {
                             auto its_eventgroup = find_eventgroup(_service, _instance, its_group);
@@ -1472,7 +1472,7 @@ void routing_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
 
     std::forward_list<struct service_info> services_to_report_;
     {
-        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
         for (auto &its_service : remote_services_) {
             for (auto &its_instance : its_service.second) {
                 for (auto &its_client : its_instance.second) {
@@ -1545,7 +1545,7 @@ void routing_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
 
 void routing_manager_impl::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
     // Is called when endpoint->connect fails!
-    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+    boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
     for (auto &its_service : remote_services_) {
         for (auto &its_instance : its_service.second) {
             for (auto &its_client : its_instance.second) {
@@ -1592,7 +1592,7 @@ void routing_manager_impl::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
 void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _service,
         instance_t _instance, major_version_t _major, minor_version_t _minor) {
     {
-        std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(local_services_mutex_);
         auto found_service = local_services_.find(_service);
         if (found_service != local_services_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -1940,7 +1940,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_or_create_remote_client(
     std::shared_ptr<endpoint> its_endpoint;
     bool start_endpoint(false);
     {
-        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
         its_endpoint = find_remote_client(_service, _instance, _reliable, _client);
         if (!its_endpoint) {
             its_endpoint = create_remote_client(_service, _instance, _reliable, _client);
@@ -1987,7 +1987,7 @@ void routing_manager_impl::init_service_info(
                 if (its_reliable_endpoint) {
                     its_info->set_endpoint(its_reliable_endpoint, true);
                     its_reliable_endpoint->increment_use_count();
-                    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+                    boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
                     service_instances_[_service][its_reliable_endpoint.get()] =
                             _instance;
                 }
@@ -1999,7 +1999,7 @@ void routing_manager_impl::init_service_info(
                 if (its_unreliable_endpoint) {
                     its_info->set_endpoint(its_unreliable_endpoint, false);
                     its_unreliable_endpoint->increment_use_count();
-                    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+                    boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
                     service_instances_[_service][its_unreliable_endpoint.get()] =
                             _instance;
                 }
@@ -2071,7 +2071,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_client_endpoint(
 
 std::shared_ptr<endpoint> routing_manager_impl::create_server_endpoint(
         uint16_t _port, bool _reliable, bool _start) {
-    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+    boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
     std::shared_ptr<endpoint> its_endpoint;
     try {
         boost::asio::ip::address its_unicast = configuration_->get_unicast_address();
@@ -2130,7 +2130,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_server_endpoint(
 std::shared_ptr<endpoint> routing_manager_impl::find_server_endpoint(
         uint16_t _port, bool _reliable) const {
     std::shared_ptr<endpoint> its_endpoint;
-    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+    boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
     auto found_port = server_endpoints_.find(_port);
     if (found_port != server_endpoints_.end()) {
         auto found_endpoint = found_port->second.find(_reliable);
@@ -2155,7 +2155,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_or_create_server_endpoint(
 void routing_manager_impl::remove_local(client_t _client, bool _remove_uid) {
     auto clients_subscriptions = get_subscriptions(_client);
     {
-        std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(remote_subscription_state_mutex_);
         for (const auto& s : clients_subscriptions) {
             remote_subscription_state_.erase(std::tuple_cat(s, std::make_tuple(_client)));
         }
@@ -2164,7 +2164,7 @@ void routing_manager_impl::remove_local(client_t _client, bool _remove_uid) {
 
     std::forward_list<std::pair<service_t, instance_t>> services_to_release_;
     {
-        std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(requested_services_mutex_);
         auto its_client = requested_services_.find(_client);
         if (its_client != requested_services_.end()) {
             for (auto its_service : its_client->second) {
@@ -2184,7 +2184,7 @@ instance_t routing_manager_impl::find_instance(service_t _service,
         endpoint * _endpoint) {
     instance_t its_instance(0xFFFF);
     {
-        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
         auto found_service = service_instances_.find(_service);
         if (found_service != service_instances_.end()) {
             auto found_endpoint = found_service->second.find(_endpoint);
@@ -2218,7 +2218,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_remote_client(
     if( its_remote_port != ILLEGAL_PORT) {
         // if client port range for remote service port range is configured
         // and remote port is in range, determine unused client port
-        std::unique_lock<std::mutex> its_lock(used_client_ports_mutex_);
+        boost::unique_lock<boost::mutex> its_lock(used_client_ports_mutex_);
         if (configuration_->get_client_port(_service, _instance, its_remote_port, _reliable,
                 used_client_ports_, its_local_port)) {
             if(its_endpoint_def) {
@@ -2338,7 +2338,7 @@ client_t routing_manager_impl::find_client(
 
 bool routing_manager_impl::is_field(service_t _service, instance_t _instance,
         event_t _event) const {
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(events_mutex_);
     auto find_service = events_.find(_service);
     if (find_service != events_.end()) {
         auto find_instance = find_service->second.find(_instance);
@@ -2400,7 +2400,7 @@ void routing_manager_impl::add_routing_info(
     bool is_unreliable_known(false);
 
     {
-        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
         auto found_service = remote_service_info_.find(_service);
         if (found_service != remote_service_info_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -2460,20 +2460,20 @@ void routing_manager_impl::add_routing_info(
             std::shared_ptr<endpoint_definition> endpoint_def_udp
                 = endpoint_definition::get(_unreliable_address, _unreliable_port, false, _service, _instance);
             {
-                std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+                boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
                 remote_service_info_[_service][_instance][false] = endpoint_def_udp;
                 remote_service_info_[_service][_instance][true] = endpoint_def_tcp;
             }
             udp_inserted = true;
         } else {
-            std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+            boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
             remote_service_info_[_service][_instance][true] = endpoint_def_tcp;
         }
 
         // check if service was requested and establish TCP connection if necessary
         {
             bool connected(false);
-            std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(requested_services_mutex_);
             for(const auto &client_id : requested_services_) {
                 auto found_service = client_id.second.find(_service);
                 if (found_service != client_id.second.end()) {
@@ -2510,7 +2510,7 @@ void routing_manager_impl::add_routing_info(
             find_or_create_remote_client(_service, _instance, true, c);
         }
     } else if (_reliable_port != ILLEGAL_PORT && is_reliable_known) {
-        std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(requested_services_mutex_);
         for(const auto &client_id : requested_services_) {
             auto found_service = client_id.second.find(_service);
             if (found_service != client_id.second.end()) {
@@ -2555,13 +2555,13 @@ void routing_manager_impl::add_routing_info(
             std::shared_ptr<endpoint_definition> endpoint_def
                 = endpoint_definition::get(_unreliable_address, _unreliable_port, false, _service, _instance);
             {
-                std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+                boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
                 remote_service_info_[_service][_instance][false] = endpoint_def;
             }
             // check if service was requested and increase requester count if necessary
             {
                 bool connected(false);
-                std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(requested_services_mutex_);
                 for (const auto &client_id : requested_services_) {
                     const auto found_service = client_id.second.find(_service);
                     if (found_service != client_id.second.end()) {
@@ -2601,7 +2601,7 @@ void routing_manager_impl::add_routing_info(
             }
         }
     } else if (_unreliable_port != ILLEGAL_PORT && is_unreliable_known) {
-        std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(requested_services_mutex_);
         for(const auto &client_id : requested_services_) {
             auto found_service = client_id.second.find(_service);
             if (found_service != client_id.second.end()) {
@@ -2688,7 +2688,7 @@ void routing_manager_impl::update_routing_info(std::chrono::milliseconds _elapse
     std::map<service_t, std::vector<instance_t> > its_expired_offers;
 
     {
-        std::lock_guard<std::mutex> its_lock(services_remote_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(services_remote_mutex_);
         for (const auto &s : services_remote_) {
             for (const auto &i : s.second) {
                 ttl_t its_ttl = i.second->get_ttl();
@@ -2776,7 +2776,7 @@ void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address &
     };
     std::vector<struct subscriptions_info> subscriptions_to_expire_;
     {
-        std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
         for (auto &its_service : eventgroups_) {
             for (auto &its_instance : its_service.second) {
                 for (auto &its_eventgroup : its_instance.second) {
@@ -2912,7 +2912,7 @@ void routing_manager_impl::on_remote_subscription(
                     get_client(_subscriber);
         }
     }
-    std::unique_lock<std::mutex> eventgroup_lock(its_eventgroup->get_subscription_lock());
+    boost::unique_lock<boost::mutex> eventgroup_lock(its_eventgroup->get_subscription_lock());
     const std::chrono::steady_clock::time_point its_expiration =
             std::chrono::steady_clock::now() + std::chrono::seconds(_ttl);
     if (its_eventgroup->update_target(_subscriber, its_expiration)) {
@@ -3005,7 +3005,7 @@ void routing_manager_impl::on_subscribe_ack(service_t _service,
 
     bool multicast_known(false);
     {
-        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
         const auto found_service = multicast_info.find(_service);
         if (found_service != multicast_info.end()) {
             const auto found_instance = found_service->second.find(_instance);
@@ -3034,7 +3034,7 @@ void routing_manager_impl::on_subscribe_ack(service_t _service,
         = find_or_create_server_endpoint(_port, false, is_someip);
     if (its_endpoint) {
         if (!multicast_known) {
-            std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+            boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
             service_instances_[_service][its_endpoint.get()] = _instance;
         }
         its_endpoint->join(_address.to_string());
@@ -3050,12 +3050,12 @@ void routing_manager_impl::on_subscribe_ack(client_t _client,
     bool specific_endpoint_client = its_client != VSOMEIP_ROUTING_CLIENT;
     auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
-        std::unique_lock<std::mutex> eventgroup_lock(its_eventgroup->get_subscription_lock());
+        boost::unique_lock<boost::mutex> eventgroup_lock(its_eventgroup->get_subscription_lock());
         if (_subscription_id == DEFAULT_SUBSCRIPTION) {
             // ACK coming in via SD from remote or as answer to a subscription
             // of the application hosting the rm_impl to a local service
             auto its_tuple = std::make_tuple(_service, _instance, _eventgroup, its_client);
-            std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(remote_subscription_state_mutex_);
             auto its_state = remote_subscription_state_.find(its_tuple);
             if (its_state != remote_subscription_state_.end()) {
                 if (its_state->second == subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED) {
@@ -3083,7 +3083,7 @@ void routing_manager_impl::on_subscribe_ack(client_t _client,
                                 && its_sd_message_id.subscriber_
                                 && its_sd_message_id.target_) {
                             {
-                                std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
+                                boost::lock_guard<boost::mutex> its_lock(remote_subscribers_mutex_);
                                 remote_subscribers_[_service][_instance][_client].insert(its_sd_message_id.subscriber_);
                             }
                             const std::chrono::steady_clock::time_point its_expiration =
@@ -3174,12 +3174,12 @@ void routing_manager_impl::on_subscribe_nack(client_t _client,
     bool specific_endpoint_client = its_client != VSOMEIP_ROUTING_CLIENT;
     auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
-        std::unique_lock<std::mutex> eventgroup_lock(its_eventgroup->get_subscription_lock());
+        boost::unique_lock<boost::mutex> eventgroup_lock(its_eventgroup->get_subscription_lock());
         if (_subscription_id == DEFAULT_SUBSCRIPTION) {
             // NACK coming in via SD from remote or as answer to a subscription
             // of the application hosting the rm_impl to a local service
             auto its_tuple = std::make_tuple(_service, _instance, _eventgroup, its_client);
-            std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(remote_subscription_state_mutex_);
             auto its_state = remote_subscription_state_.find(its_tuple);
             if (its_state != remote_subscription_state_.end()) {
                 if (its_state->second == subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED) {
@@ -3257,7 +3257,7 @@ bool routing_manager_impl::deliver_specific_endpoint_message(service_t _service,
 
     // Try to deliver specific endpoint message (for selective subscribers)
     {
-        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
         auto found_servic = remote_services_.find(_service);
         if (found_servic != remote_services_.end()) {
             auto found_instance = found_servic->second.find(_instance);
@@ -3301,7 +3301,7 @@ void routing_manager_impl::clear_client_endpoints(service_t _service, instance_t
     bool other_services_reachable_through_endpoint(false);
     std::vector<std::shared_ptr<endpoint>> its_specific_endpoints;
     {
-        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
         // Clear client endpoints for remote services (generic and specific ones)
         if (remote_services_.find(_service) != remote_services_.end()) {
             if (remote_services_[_service].find(_instance) != remote_services_[_service].end()) {
@@ -3414,7 +3414,7 @@ void routing_manager_impl::clear_client_endpoints(service_t _service, instance_t
 }
 
 void routing_manager_impl::clear_multicast_endpoints(service_t _service, instance_t _instance) {
-    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+    boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
     // Clear multicast info and endpoint and multicast instance (remote service)
     if (multicast_info.find(_service) != multicast_info.end()) {
         if (multicast_info[_service].find(_instance) != multicast_info[_service].end()) {
@@ -3535,7 +3535,7 @@ void routing_manager_impl::send_error(return_code_e _return_code,
     error_message->set_service(its_service);
     error_message->set_session(its_session);
     {
-        std::lock_guard<std::mutex> its_lock(serialize_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(serialize_mutex_);
         if (serializer_->serialize(error_message.get())) {
             if (_receiver) {
                 auto its_endpoint_def = std::make_shared<endpoint_definition>(
@@ -3555,7 +3555,7 @@ void routing_manager_impl::send_error(return_code_e _return_code,
 void routing_manager_impl::on_identify_response(client_t _client, service_t _service,
         instance_t _instance, bool _reliable) {
     {
-        std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(identified_clients_mutex_);
         auto its_service = identifying_clients_.find(_service);
         if (its_service != identifying_clients_.end()) {
             auto its_instance = its_service->second.find(_instance);
@@ -3601,7 +3601,7 @@ bool routing_manager_impl::send_identify_message(client_t _client,
         return false;
     }
     {
-        std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(identified_clients_mutex_);
         identifying_clients_[_service][_instance][_reliable].insert(_client);
     }
 
@@ -3618,7 +3618,7 @@ bool routing_manager_impl::send_identify_message(client_t _client,
 
 bool routing_manager_impl::supports_selective(service_t _service, instance_t _instance) {
     bool supports_selective(false);
-    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+    boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
     auto its_service = remote_service_info_.find(_service);
     if (its_service != remote_service_info_.end()) {
         auto its_instance = its_service->second.find(_instance);
@@ -3640,7 +3640,7 @@ bool routing_manager_impl::is_identifying(client_t _client, service_t _service,
         return false;
     }
     bool is_identifieing(false);
-    std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(identified_clients_mutex_);
     auto its_service = identifying_clients_.find(_service);
     if (its_service != identifying_clients_.end()) {
         auto its_instance = its_service->second.find(_instance);
@@ -3664,7 +3664,7 @@ bool routing_manager_impl::has_identified(client_t _client, service_t _service,
         return true;
     }
     bool has_identified(false);
-    std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(identified_clients_mutex_);
     auto its_service = identified_clients_.find(_service);
     if (its_service != identified_clients_.end()) {
         auto its_instance = its_service->second.find(_instance);
@@ -3684,7 +3684,7 @@ bool routing_manager_impl::has_identified(client_t _client, service_t _service,
 void routing_manager_impl::clear_remote_subscriber(
         service_t _service, instance_t _instance, client_t _client,
         const std::shared_ptr<endpoint_definition> &_target) {
-    std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(remote_subscribers_mutex_);
     auto its_service = remote_subscribers_.find(_service);
     if (its_service != remote_subscribers_.end()) {
         auto its_instance = its_service->second.find(_instance);
@@ -3718,7 +3718,7 @@ routing_manager_impl::expire_subscriptions(bool _force) {
     std::chrono::steady_clock::time_point next_expiration
         = std::chrono::steady_clock::now() + std::chrono::hours(24);
     {
-        std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
 
         for (auto &its_service : eventgroups_) {
             for (auto &its_instance : its_service.second) {
@@ -3818,7 +3818,7 @@ void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const
         }
         std::stringstream its_last_resume;
         {
-            std::lock_guard<std::mutex> its_lock(last_resume_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(last_resume_mutex_);
             if (last_resume_ != std::chrono::steady_clock::time_point::min()) {
                 its_last_resume << " | " << std::dec
                         << std::chrono::duration_cast<std::chrono::seconds>(
@@ -3829,7 +3829,7 @@ void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const
                 << ((is_diag_mode == true) ? "diagnosis)" : "default)")
                 << its_last_resume.str();
         {
-            std::lock_guard<std::mutex> its_lock(version_log_timer_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(version_log_timer_mutex_);
             version_log_timer_.expires_from_now(
                     std::chrono::seconds(configuration_->get_log_version_interval()));
             version_log_timer_.async_wait(std::bind(&routing_manager_impl::log_version_timer_cbk,
@@ -3859,7 +3859,7 @@ void routing_manager_impl::watchdog_cbk(boost::system::error_code const &_error)
         }
 
         if (has_interval) {
-            std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(watchdog_timer_mutex_);
             watchdog_timer_.expires_from_now(std::chrono::microseconds(its_interval / 2));
             watchdog_timer_.async_wait(std::bind(&routing_manager_impl::watchdog_cbk,
                     this, std::placeholders::_1));
@@ -3870,7 +3870,7 @@ void routing_manager_impl::watchdog_cbk(boost::system::error_code const &_error)
 
 void routing_manager_impl::clear_remote_service_info(service_t _service, instance_t _instance, bool _reliable) {
     // Clear remote_service_info_
-    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+    boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
     if (remote_service_info_.find(_service) != remote_service_info_.end()) {
         if (remote_service_info_[_service].find(_instance) != remote_service_info_[_service].end()) {
             remote_service_info_[_service][_instance].erase(_reliable);
@@ -3888,7 +3888,7 @@ void routing_manager_impl::clear_remote_service_info(service_t _service, instanc
 bool routing_manager_impl::handle_local_offer_service(client_t _client, service_t _service,
         instance_t _instance, major_version_t _major,minor_version_t _minor) {
     {
-        std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(local_services_mutex_);
         auto found_service = local_services_.find(_service);
         if (found_service != local_services_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -3913,7 +3913,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                     // check if previous offering application is still alive
                     bool already_pinged(false);
                     {
-                        std::lock_guard<std::mutex> its_lock(pending_offers_mutex_);
+                        boost::lock_guard<boost::mutex> its_lock(pending_offers_mutex_);
                         auto found_service2 = pending_offers_.find(_service);
                         if (found_service2 != pending_offers_.end()) {
                             auto found_instance2 = found_service2->second.find(_instance);
@@ -3948,7 +3948,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                                 = std::dynamic_pointer_cast<local_client_endpoint_base_impl>(
                                         find_local(its_stored_client));
                         if (its_old_endpoint) {
-                            std::lock_guard<std::mutex> its_lock(pending_offers_mutex_);
+                            boost::lock_guard<boost::mutex> its_lock(pending_offers_mutex_);
                             if(stub_->send_ping(its_stored_client)) {
                                 pending_offers_[_service][_instance] =
                                         std::make_tuple(_major, _minor, _client,
@@ -4026,7 +4026,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
 }
 
 void routing_manager_impl::on_pong(client_t _client) {
-    std::lock_guard<std::mutex> its_lock(pending_offers_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(pending_offers_mutex_);
     if (pending_offers_.size() == 0) {
         return;
     }
@@ -4079,7 +4079,7 @@ void routing_manager_impl::handle_client_error(client_t _client) {
     std::forward_list<std::tuple<client_t, service_t, instance_t, major_version_t,
                                         minor_version_t>> its_offers;
     {
-        std::lock_guard<std::mutex> its_lock(pending_offers_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(pending_offers_mutex_);
         if (pending_offers_.size() == 0) {
             return;
         }
@@ -4131,7 +4131,7 @@ void routing_manager_impl::remove_specific_client_endpoint(client_t _client, ser
         instance_t _instance, bool _reliable) {
     client_t its_client = is_specific_endpoint_client(_client, _service, _instance);
     if (its_client != VSOMEIP_ROUTING_CLIENT) {
-        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
         if (remote_services_.find(_service) != remote_services_.end()) {
             if (remote_services_[_service].find(_instance) != remote_services_[_service].end()) {
                 auto endpoint = remote_services_[_service][_instance][_client][_reliable];
@@ -4150,7 +4150,7 @@ void routing_manager_impl::remove_specific_client_endpoint(client_t _client, ser
 }
 
 void routing_manager_impl::clear_identified_clients( service_t _service, instance_t _instance) {
-    std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(identified_clients_mutex_);
     auto its_service = identified_clients_.find(_service);
     if (its_service != identified_clients_.end()) {
         auto found_instance = its_service->second.find(_instance);
@@ -4168,7 +4168,7 @@ void routing_manager_impl::clear_identified_clients( service_t _service, instanc
 }
 
 void routing_manager_impl::clear_identifying_clients( service_t _service, instance_t _instance) {
-    std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(identified_clients_mutex_);
     auto its_service = identifying_clients_.find(_service);
     if (its_service != identifying_clients_.end()) {
         auto found_instance = its_service->second.find(_instance);
@@ -4186,7 +4186,7 @@ void routing_manager_impl::clear_identifying_clients( service_t _service, instan
 }
 
 void routing_manager_impl::remove_identified_client(service_t _service, instance_t _instance, client_t _client) {
-    std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(identified_clients_mutex_);
     auto its_service = identified_clients_.find(_service);
     if (its_service != identified_clients_.end()) {
         auto found_instance = its_service->second.find(_instance);
@@ -4208,7 +4208,7 @@ void routing_manager_impl::remove_identified_client(service_t _service, instance
 }
 
 void routing_manager_impl::remove_identifying_client(service_t _service, instance_t _instance, client_t _client) {
-    std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(identified_clients_mutex_);
     auto its_service = identifying_clients_.find(_service);
     if (its_service != identifying_clients_.end()) {
         auto found_instance = its_service->second.find(_instance);
@@ -4275,13 +4275,13 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                     }
                 }
                 {
-                    std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(remote_subscription_state_mutex_);
                     remote_subscription_state_.clear();
                 }
                 // mark all external services as offline
                 services_t its_remote_services;
                 {
-                    std::lock_guard<std::mutex> its_lock(services_remote_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(services_remote_mutex_);
                     its_remote_services = services_remote_;
                 }
                 for (const auto &s : its_remote_services) {
@@ -4313,7 +4313,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 VSOMEIP_INFO << "Set routing to resume mode, diagnosis mode was "
                         << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
                 {
-                    std::lock_guard<std::mutex> its_lock(last_resume_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(last_resume_mutex_);
                     last_resume_ = std::chrono::steady_clock::now();
                 }
 
@@ -4396,7 +4396,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
 
 void routing_manager_impl::on_net_interface_or_route_state_changed(
         bool _is_interface, std::string _if, bool _available) {
-    std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(pending_sd_offers_mutex_);
     auto log_change_message = [&_if, _available, _is_interface](bool _warning) {
         std::stringstream ss;
         ss << (_is_interface ? "Network interface" : "Route") << " \"" << _if
@@ -4469,14 +4469,14 @@ void routing_manager_impl::requested_service_add(client_t _client,
                                              instance_t _instance,
                                              major_version_t _major,
                                              minor_version_t _minor) {
-    std::lock_guard<std::mutex> ist_lock(requested_services_mutex_);
+    boost::lock_guard<boost::mutex> ist_lock(requested_services_mutex_);
     requested_services_[_client][_service][_instance].insert({ _major, _minor });
 }
 
 void routing_manager_impl::requested_service_remove(client_t _client,
                                              service_t _service,
                                              instance_t _instance) {
-    std::lock_guard<std::mutex> ist_lock(requested_services_mutex_);
+    boost::lock_guard<boost::mutex> ist_lock(requested_services_mutex_);
     auto found_client = requested_services_.find(_client);
     if (found_client != requested_services_.end()) {
         auto found_service = found_client->second.find(_service);
@@ -4501,7 +4501,7 @@ routing_manager_impl::get_subscribed_eventgroups(
         service_t _service, instance_t _instance) {
     std::set<eventgroup_t> its_eventgroups;
 
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
     auto found_service = eventgroups_.find(_service);
     if (found_service != eventgroups_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -4523,7 +4523,7 @@ void routing_manager_impl::clear_targets_and_pending_sub_from_eventgroups(
         service_t _service, instance_t _instance) {
     std::vector<std::shared_ptr<event>> its_events;
     {
-        std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
         auto found_service = eventgroups_.find(_service);
         if (found_service != eventgroups_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -4542,7 +4542,7 @@ void routing_manager_impl::clear_targets_and_pending_sub_from_eventgroups(
 
                             client_t its_client = is_specific_endpoint_client(its_subscriber, _service, _instance);
                             {
-                                std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+                                boost::lock_guard<boost::mutex> its_lock(remote_subscription_state_mutex_);
                                 const auto its_tuple =
                                     std::make_tuple(found_service->first, found_instance->first,
                                                     its_eventgroup.first, its_client);
@@ -4564,7 +4564,7 @@ void routing_manager_impl::clear_targets_and_pending_sub_from_eventgroups(
 
 void routing_manager_impl::clear_remote_subscriber(service_t _service,
                                                    instance_t _instance) {
-    std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(remote_subscribers_mutex_);
     auto found_service = remote_subscribers_.find(_service);
     if (found_service != remote_subscribers_.end()) {
         if (found_service->second.erase(_instance) > 0 &&
@@ -4648,7 +4648,7 @@ void routing_manager_impl::handle_subscription_state(client_t _client, service_t
     client_t subscriber = is_specific_endpoint_client(_client, _service, _instance);
     auto its_tuple = std::make_tuple(_service, _instance, _eventgroup, subscriber);
 
-    std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(remote_subscription_state_mutex_);
     auto its_state = remote_subscription_state_.find(its_tuple);
     if (its_state != remote_subscription_state_.end()) {
         if (its_state->second == subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED) {
@@ -4669,7 +4669,7 @@ client_t routing_manager_impl::is_specific_endpoint_client(client_t _client,
         service_t _service, instance_t _instance) {
     client_t result = VSOMEIP_ROUTING_CLIENT;
     {
-        std::lock_guard<std::mutex> its_lock(specific_endpoint_clients_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(specific_endpoint_clients_mutex_);
         auto found_service = specific_endpoint_clients_.find(_service);
         if (found_service != specific_endpoint_clients_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -4689,7 +4689,7 @@ std::unordered_set<client_t> routing_manager_impl::get_specific_endpoint_clients
         service_t _service, instance_t _instance) {
     std::unordered_set<client_t> result;
     {
-        std::lock_guard<std::mutex> its_lock(specific_endpoint_clients_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(specific_endpoint_clients_mutex_);
         auto found_service = specific_endpoint_clients_.find(_service);
         if (found_service != specific_endpoint_clients_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -4820,7 +4820,7 @@ void routing_manager_impl::memory_log_timer_cbk(
             ;
 
     {
-        std::lock_guard<std::mutex> its_lock(memory_log_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(memory_log_timer_mutex_);
         boost::system::error_code ec;
         memory_log_timer_.expires_from_now(std::chrono::seconds(
                 configuration_->get_log_memory_interval()), ec);
@@ -4851,7 +4851,7 @@ void routing_manager_impl::status_log_timer_cbk(
         remote_services_t remote_services;
         server_endpoints_t server_endpoints;
         {
-            std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+            boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
             client_endpoints_by_ip = client_endpoints_by_ip_;
             remote_services = remote_services_;
             server_endpoints = server_endpoints_;
@@ -4906,7 +4906,7 @@ void routing_manager_impl::status_log_timer_cbk(
 
 
     {
-        std::lock_guard<std::mutex> its_lock(status_log_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(status_log_timer_mutex_);
         boost::system::error_code ec;
         status_log_timer_.expires_from_now(std::chrono::seconds(
                 configuration_->get_log_status_interval()), ec);
@@ -5056,7 +5056,7 @@ void routing_manager_impl::send_subscription(
 void routing_manager_impl::cleanup_server_endpoint(
         service_t _service, const std::shared_ptr<endpoint>& _endpoint) {
     if (_endpoint) {
-        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        boost::lock_guard<boost::recursive_mutex> its_lock(endpoint_mutex_);
         bool reliable = _endpoint->is_reliable();
         // Check whether any service still uses this endpoint
         _endpoint->decrement_use_count();
@@ -5087,7 +5087,7 @@ void routing_manager_impl::cleanup_server_endpoint(
 
 pending_remote_offer_id_t routing_manager_impl::pending_remote_offer_add(
         service_t _service, instance_t _instance) {
-    std::lock_guard<std::mutex> its_lock(pending_remote_offers_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(pending_remote_offers_mutex_);
     if (++pending_remote_offer_id_ == 0) {
         pending_remote_offer_id_++;
     }
@@ -5098,7 +5098,7 @@ pending_remote_offer_id_t routing_manager_impl::pending_remote_offer_add(
 
 std::pair<service_t, instance_t> routing_manager_impl::pending_remote_offer_remove(
         pending_remote_offer_id_t _id) {
-    std::lock_guard<std::mutex> its_lock(pending_remote_offers_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(pending_remote_offers_mutex_);
     std::pair<service_t, instance_t> ret = std::make_pair(ANY_SERVICE,
                                                           ANY_INSTANCE);
     auto found_si = pending_remote_offers_.find(_id);
@@ -5137,7 +5137,7 @@ void routing_manager_impl::on_security_update_timeout(
     std::unordered_set<client_t> its_missing_clients = pending_security_update_get(_id);
     {
         // erase timer
-        std::lock_guard<std::mutex> its_lock(security_update_timers_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(security_update_timers_mutex_);
         security_update_timers_.erase(_id);
     }
     {
@@ -5163,12 +5163,12 @@ void routing_manager_impl::on_security_update_timeout(
         }
         {
             // erase pending security update
-            std::lock_guard<std::mutex> its_lock(pending_security_updates_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(pending_security_updates_mutex_);
             pending_security_updates_.erase(_id);
         }
 
         // call handler with error on timeout or with SUCCESS if missing clients are not connected
-        std::lock_guard<std::recursive_mutex> its_lock(security_update_handlers_mutex_);
+        boost::lock_guard<boost::recursive_mutex> its_lock(security_update_handlers_mutex_);
         const auto found_handler = security_update_handlers_.find(_id);
         if (found_handler != security_update_handlers_.end()) {
             found_handler->second(its_state);
@@ -5198,7 +5198,7 @@ bool routing_manager_impl::update_security_policy_configuration(
     if (!its_clients_to_inform.empty()) {
         its_id = pending_security_update_add(its_clients_to_inform);
         {
-            std::lock_guard<std::recursive_mutex> its_lock(security_update_handlers_mutex_);
+            boost::lock_guard<boost::recursive_mutex> its_lock(security_update_handlers_mutex_);
             security_update_handlers_[its_id] = _handler;
         }
 
@@ -5217,7 +5217,7 @@ bool routing_manager_impl::update_security_policy_configuration(
             } else {
                 VSOMEIP_ERROR << __func__ << ": timer creation: " << ec.message();
             }
-            std::lock_guard<std::mutex> its_lock(security_update_timers_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(security_update_timers_mutex_);
             security_update_timers_[its_id] = its_timer;
         }
 
@@ -5243,7 +5243,7 @@ bool routing_manager_impl::update_security_policy_configuration(
             sent_counter++;
             // Prevent burst
             if (sent_counter % its_tranche == 0) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
             }
         }
     } else {
@@ -5275,7 +5275,7 @@ bool routing_manager_impl::remove_security_policy_configuration(
             if (!its_clients_to_inform.empty()) {
                 its_id = pending_security_update_add(its_clients_to_inform);
                 {
-                    std::lock_guard<std::recursive_mutex> its_lock(security_update_handlers_mutex_);
+                    boost::lock_guard<boost::recursive_mutex> its_lock(security_update_handlers_mutex_);
                     security_update_handlers_[its_id] = _handler;
                 }
 
@@ -5294,7 +5294,7 @@ bool routing_manager_impl::remove_security_policy_configuration(
                     } else {
                         VSOMEIP_ERROR << __func__ << ": timer creation: " << ec.message();
                     }
-                    std::lock_guard<std::mutex> its_lock(security_update_timers_mutex_);
+                    boost::lock_guard<boost::mutex> its_lock(security_update_timers_mutex_);
                     security_update_timers_[its_id] = its_timer;
                 }
 
@@ -5320,7 +5320,7 @@ bool routing_manager_impl::remove_security_policy_configuration(
                     sent_counter++;
                     // Prevent burst
                     if (sent_counter % its_tranche == 0) {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
                     }
                 }
             } else {
@@ -5338,7 +5338,7 @@ bool routing_manager_impl::remove_security_policy_configuration(
 
 pending_security_update_id_t routing_manager_impl::pending_security_update_add(
         std::unordered_set<client_t> _clients) {
-    std::lock_guard<std::mutex> its_lock(pending_security_updates_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(pending_security_updates_mutex_);
     if (++pending_security_update_id_ == 0) {
         pending_security_update_id_++;
     }
@@ -5348,7 +5348,7 @@ pending_security_update_id_t routing_manager_impl::pending_security_update_add(
 
 std::unordered_set<client_t> routing_manager_impl::pending_security_update_get(
         pending_security_update_id_t _id) {
-    std::lock_guard<std::mutex> its_lock(pending_security_updates_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(pending_security_updates_mutex_);
     std::unordered_set<client_t> its_missing_clients;
     auto found_si = pending_security_updates_.find(_id);
     if (found_si != pending_security_updates_.end()) {
@@ -5359,7 +5359,7 @@ std::unordered_set<client_t> routing_manager_impl::pending_security_update_get(
 
 bool routing_manager_impl::pending_security_update_remove(
         pending_security_update_id_t _id, client_t _client) {
-    std::lock_guard<std::mutex> its_lock(pending_security_updates_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(pending_security_updates_mutex_);
     auto found_si = pending_security_updates_.find(_id);
     if (found_si != pending_security_updates_.end()) {
         if (found_si->second.erase(_client)) {
@@ -5371,7 +5371,7 @@ bool routing_manager_impl::pending_security_update_remove(
 
 bool routing_manager_impl::is_pending_security_update_finished(
         pending_security_update_id_t _id) {
-    std::lock_guard<std::mutex> its_lock(pending_security_updates_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(pending_security_updates_mutex_);
     bool ret(false);
     auto found_si = pending_security_updates_.find(_id);
     if (found_si != pending_security_updates_.end()) {
@@ -5391,7 +5391,7 @@ void routing_manager_impl::on_security_update_response(
         if (is_pending_security_update_finished(_id)) {
             // cancel timeout timer
             {
-                std::lock_guard<std::mutex> its_lock(security_update_timers_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(security_update_timers_mutex_);
                 auto found_timer = security_update_timers_.find(_id);
                 if (found_timer != security_update_timers_.end()) {
                     boost::system::error_code ec;
@@ -5406,7 +5406,7 @@ void routing_manager_impl::on_security_update_response(
 
             // call handler
             {
-                std::lock_guard<std::recursive_mutex> its_lock(security_update_handlers_mutex_);
+                boost::lock_guard<boost::recursive_mutex> its_lock(security_update_handlers_mutex_);
                 auto found_handler = security_update_handlers_.find(_id);
                 if (found_handler != security_update_handlers_.end()) {
                     found_handler->second(security_update_state_e::SU_SUCCESS);

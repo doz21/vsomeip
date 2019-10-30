@@ -8,7 +8,7 @@
 
 #include <map>
 #include <chrono>
-#include <mutex>
+#include <boost/thread.hpp>
 #include <set>
 
 #include <vsomeip/constants.hpp>
@@ -42,11 +42,11 @@ private:
         void * load_symbol(void * _handle, const std::string &_symbol);
 
         bool plugins_loaded_;
-        std::mutex loader_mutex_;
+        boost::mutex loader_mutex_;
 
         std::map<plugin_type_e, std::map<std::string, std::shared_ptr<plugin> > > plugins_;
         std::map<plugin_type_e, std::map<std::string, void*> > handles_;
-        std::recursive_mutex plugins_mutex_;
+        boost::recursive_mutex plugins_mutex_;
 
         static std::shared_ptr<plugin_manager> the_plugin_manager__;
 };

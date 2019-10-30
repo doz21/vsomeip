@@ -9,7 +9,7 @@
 #include <deque>
 #include <map>
 #include <memory>
-#include <mutex>
+#include <boost/thread.hpp>
 #include <set>
 #include <vector>
 
@@ -69,13 +69,13 @@ protected:
     std::map<endpoint_type, message_buffer_ptr_t> packetizer_;
     queue_type queues_;
 
-    std::mutex clients_mutex_;
+    boost::mutex clients_mutex_;
     std::map<client_t, std::map<session_t, endpoint_type> > clients_;
     std::map<endpoint_type, client_t> endpoint_to_client_;
 
     boost::asio::steady_timer flush_timer_;
 
-    std::mutex mutex_;
+    boost::mutex mutex_;
 
 private:
     virtual std::string get_remote_information(

@@ -7,7 +7,7 @@
 #define VSOMEIP_LOCAL_SERVER_ENDPOINT_IMPL_HPP
 
 #include <map>
-#include <thread>
+#include <boost/thread.hpp>
 #include <condition_variable>
 #include <memory>
 
@@ -84,7 +84,7 @@ private:
                           std::uint32_t _buffer_shrink_threshold,
                           boost::asio::io_service &_io_service);
         socket_type & get_socket();
-        std::unique_lock<std::mutex> get_socket_lock();
+        boost::unique_lock<boost::mutex> get_socket_lock();
 
         void start();
         void stop();
@@ -110,7 +110,7 @@ private:
         const std::string get_path_remote() const;
         void handle_recv_buffer_exception(const std::exception &_e);
 
-        std::mutex socket_mutex_;
+        boost::mutex socket_mutex_;
         local_server_endpoint_impl::socket_type socket_;
         std::weak_ptr<local_server_endpoint_impl> server_;
 
@@ -127,7 +127,7 @@ private:
 
     };
 
-    std::mutex acceptor_mutex_;
+    boost::mutex acceptor_mutex_;
 #ifdef _WIN32
     boost::asio::ip::tcp::acceptor acceptor_;
 #else
@@ -135,10 +135,10 @@ private:
 #endif
 
     typedef std::map<endpoint_type, connection::ptr> connections_t;
-    std::mutex connections_mutex_;
+    boost::mutex connections_mutex_;
     connections_t connections_;
 
-    std::mutex client_connections_mutex_;
+    boost::mutex client_connections_mutex_;
     std::map<client_t, connection::ptr> client_connections_;
 
     const std::uint32_t buffer_shrink_threshold_;

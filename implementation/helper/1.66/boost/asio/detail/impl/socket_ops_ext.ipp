@@ -80,9 +80,13 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
         struct in6_pktinfo *pi = (struct in6_pktinfo *) WSA_CMSG_DATA(cmsg);
         if (pi)
         {
-          char str[INET6_ADDRSTRLEN];
-          ::inet_ntop(AF_INET6, &( pi->ipi6_addr), str, INET6_ADDRSTRLEN);
-          da = boost::asio::ip::address_v6(boost::asio::ip::address_v6::from_string(str));
+			char str[INET6_ADDRSTRLEN];
+			struct sockaddr_in6 in;
+			memset(&in, 0, sizeof(in));
+			in.sin6_family = AF_INET6;
+			memcpy(&in.sin6_addr, &( pi->ipi6_addr), sizeof(struct in_addr6));
+			getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in6), str, INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST);
+			da = boost::asio::ip::address_v6(boost::asio::ip::address_v6::from_string(str));
         }
       }
 	}      
@@ -127,7 +131,6 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
 	    {
 			char str[INET6_ADDRSTRLEN];
 			::inet_ntop(AF_INET6, &( pi->ipi6_addr), str, INET6_ADDRSTRLEN);
-			
     	    da = boost::asio::ip::address_v6(boost::asio::ip::address_v6::from_string(str));
         }
 	  } 

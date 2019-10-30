@@ -10,7 +10,7 @@
     #include <dlfcn.h>
     #include <signal.h>
     #include <sys/mman.h>
-    #include <thread>
+    #include <boost/thread.hpp>
     #include <sstream>
 #endif
 
@@ -27,7 +27,7 @@
 
 #ifdef _WIN32
     #ifndef _WINSOCKAPI_
-        #include <Windows.h>
+        #include <windows.h>
     #endif
 #endif
 
@@ -101,7 +101,7 @@ static HANDLE its_descriptor(INVALID_HANDLE_VALUE);
 #endif
 
 bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_config) {
-    std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
+    boost::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
     const std::uint16_t its_max_clients =
             get_max_number_of_clients(_config->get_diagnosis_mask());
 
@@ -316,9 +316,9 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                     static_cast<mode_t>(_config->get_permissions_shm()));
 
             int retry_count = 8;
-            std::chrono::milliseconds retry_delay = std::chrono::milliseconds(10);
+            boost::chrono::milliseconds retry_delay = boost::chrono::milliseconds(10);
             while (its_descriptor == -1 && retry_count-- > 0) {
-                std::this_thread::sleep_for(retry_delay);
+                boost::this_thread::sleep_for(retry_delay);
                 its_descriptor = shm_open(utility::get_shm_name(_config).c_str(), O_RDWR,
                         static_cast<mode_t>(_config->get_permissions_shm()));
                 retry_delay *= 2;
@@ -347,7 +347,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                         // check if it is ready for use (for 3 seconds)
                         int retry_count = 300;
                         while (configuration_data->initialized_ == 0 && --retry_count > 0) {
-                            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                            boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
                         }
 
                         if (configuration_data->initialized_ == 0) {
@@ -388,7 +388,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
 
 void utility::auto_configuration_exit(client_t _client,
         const std::shared_ptr<configuration> &_config) {
-    std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
+    boost::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
     if (the_configuration_data__) {
 #ifdef _WIN32
         // not manipulating data in shared memory, no need to take global mutex
@@ -472,7 +472,7 @@ bool utility::is_used_client_id(client_t _client,
 std::set<client_t> utility::get_used_client_ids() {
     std::set<client_t> clients;
 
-    std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
+    boost::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
 
     if (the_configuration_data__ != nullptr) {
 #ifdef _WIN32
@@ -507,7 +507,7 @@ std::set<client_t> utility::get_used_client_ids() {
 }
 
 client_t utility::request_client_id(const std::shared_ptr<configuration> &_config, const std::string &_name, client_t _client) {
-    std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
+    boost::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
 
     if (the_configuration_data__ != nullptr) {
         const std::string its_name = _config->get_routing_host();
@@ -660,7 +660,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
 }
 
 void utility::release_client_id(client_t _client) {
-    std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
+    boost::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
     if (the_configuration_data__ != nullptr) {
 #ifdef _WIN32
         WaitForSingleObject(configuration_data_mutex, INFINITE);

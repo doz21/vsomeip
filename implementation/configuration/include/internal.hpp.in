@@ -157,10 +157,11 @@
 #define VSOMEIP_DEREGISTER_APPLICATION_COMMAND_SIZE 7
 #define VSOMEIP_REGISTERED_ACK_COMMAND_SIZE      7
 
-
+#include <boost/thread.hpp>
 #ifndef _WIN32
 #include <pthread.h>
 #endif
+
 
 #define VSOMEIP_DATA_ID                         0x677D
 #define VSOMEIP_DIAGNOSIS_ADDRESS               @VSOMEIP_DIAGNOSIS_ADDRESS@

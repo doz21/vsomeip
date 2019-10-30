@@ -9,7 +9,7 @@ project (vsomeip)
 set (VSOMEIP_MAJOR_VERSION 2)
 set (VSOMEIP_MINOR_VERSION 14)
 set (VSOMEIP_PATCH_VERSION 16)
-set (VSOMEIP_HOTFIX_VERSION 50)
+set (VSOMEIP_HOTFIX_VERSION 51)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
@@ -32,11 +32,8 @@ set (INSTALL_LIB_DIR lib CACHE PATH "Installation directory for libraries")
 set (INSTALL_BIN_DIR bin CACHE PATH "Installation directory for executables")
 set (INSTALL_INCLUDE_DIR include CACHE PATH "Installation directory for header files")
 
-if (WIN32 AND NOT CYGWIN)
-    set (DEF_INSTALL_CMAKE_DIR CMake)
-else ()
-    set (DEF_INSTALL_CMAKE_DIR lib/cmake/vsomeip)
-endif ()
+
+set (DEF_INSTALL_CMAKE_DIR lib/cmake/vsomeip)
 
 set (INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH "Installation directory for CMake files")
 
@@ -67,17 +64,17 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exportmap.gcc")
     set(NO_DEPRECATED "")
     set(OPTIMIZE "")
-    set(OS_CXX_FLAGS "-D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Werror=format-security -fPIE -pie -Wl,-z,relro,-z,now")
+    set(OS_CXX_FLAGS "-D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wconversion -fexceptions -fstrict-aliasing -Wformat -Wformat-security -Werror=format-security -fPIE -pie -Wl,-z,relro,-z,now")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
-if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
-    set(OS "FREEBSD")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    set(OS "WIN32")
     set(DL_LIBRARY "")
     set(EXPORTSYMBOLS "")
-    set(NO_DEPRECATED "-Wno-deprecated")
+    set(NO_DEPRECATED "")
     set(OPTIMIZE "")
-    set(OS_CXX_FLAGS "-pthread")
-endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
+    set(OS_CXX_FLAGS "-O -Wall -Wextra -Wconversion -fexceptions -fstrict-aliasing -Wformat -Wformat-security -Werror=format-security")
+endif (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 
 # Signal handling
 if (ENABLE_SIGNAL_HANDLING)
@@ -87,9 +84,6 @@ endif ()
 include_directories(
     "interface" 
 )
-
-# Threads
-find_package(Threads REQUIRED)
 
 # Boost
 find_package( Boost 1.55 COMPONENTS system thread log REQUIRED )
@@ -174,9 +168,12 @@ if (MSVC)
     set(Boost_LIBRARIES "")
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
     ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )
-else()
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -DBOOST_LOG_DYN_LINK -g ${OPTIMIZE} -std=c++11 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -DBOOST_ASIO_DISABLE_IOCP -DBOOST_LOG_DYN_LINK -g ${OPTIMIZE} -std=c++11 ${NO_DEPRECATED}")
+    set(USE_RT "ws2_32")
 endif()
 
 add_library(vsomeip SHARED ${vsomeip_SRC} ${vsomeip_e2e_SRC})
@@ -207,12 +204,6 @@ list(SORT vsomeip-sd_SRC)
 add_library(vsomeip-sd SHARED ${vsomeip-sd_SRC})
 set_target_properties (vsomeip-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 target_link_libraries(vsomeip-sd vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-
-if (MSVC)
-    set_target_properties(vsomeip-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
-    set_target_properties(vsomeip-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
-    set_target_properties(vsomeip PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
-endif()
 
 # Configuration files
 
@@ -397,7 +388,7 @@ endif()
 
 ##############################################################################
 # build daemon (Non-Windows only)
-if (NOT MSVC)
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 add_custom_target( daemon )
 add_subdirectory( daemon )
 endif()
@@ -412,7 +403,7 @@ add_subdirectory( examples EXCLUDE_FROM_ALL )
 
 # build plugins located directly in the build tree
 # (Non-Windows only)
-if (NOT MSVC)
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     if(EXISTS "${PROJECT_SOURCE_DIR}/plugins/CMakeLists.txt")
        # build plugins if available
        message("Plugins CMakeList.txt found: Build plugins")

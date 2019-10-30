@@ -90,12 +90,12 @@ bool event::is_set() const {
 }
 
 const std::shared_ptr<payload> event::get_payload() const {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     return (message_->get_payload());
 }
 
 bool event::set_payload_dont_notify(const std::shared_ptr<payload> &_payload) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     if (is_cache_placeholder_) {
         reset_payload(_payload);
         is_set_ = true;
@@ -111,7 +111,7 @@ bool event::set_payload_dont_notify(const std::shared_ptr<payload> &_payload) {
 
 void event::set_payload(const std::shared_ptr<payload> &_payload,
         bool _force, bool _flush) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     if (is_provided_) {
         if (set_payload_helper(_payload, _force)) {
             reset_payload(_payload);
@@ -133,7 +133,7 @@ void event::set_payload(const std::shared_ptr<payload> &_payload,
 
 void event::set_payload(const std::shared_ptr<payload> &_payload, client_t _client,
             bool _force, bool _flush) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     if (is_provided_) {
         if (set_payload_helper(_payload, _force)) {
             reset_payload(_payload);
@@ -150,7 +150,7 @@ void event::set_payload(const std::shared_ptr<payload> &_payload, client_t _clie
 void event::set_payload(const std::shared_ptr<payload> &_payload,
             const std::shared_ptr<endpoint_definition> _target,
             bool _force, bool _flush) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     if (is_provided_) {
         if (set_payload_helper(_payload, _force)) {
             reset_payload(_payload);
@@ -165,7 +165,7 @@ void event::set_payload(const std::shared_ptr<payload> &_payload,
 }
 
 void event::unset_payload(bool _force) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     if (_force) {
         is_set_ = false;
         stop_cycle();
@@ -181,7 +181,7 @@ void event::unset_payload(bool _force) {
 
 void event::set_update_cycle(std::chrono::milliseconds &_cycle) {
     if (is_provided_) {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         stop_cycle();
         cycle_ = _cycle;
         start_cycle();
@@ -200,7 +200,7 @@ void event::set_update_on_change(bool _is_active) {
 
 void event::set_epsilon_change_function(const epsilon_change_func_t &_epsilon_change_func) {
     if (_epsilon_change_func) {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         epsilon_change_func_ = _epsilon_change_func;
     }
 }
@@ -208,7 +208,7 @@ void event::set_epsilon_change_function(const epsilon_change_func_t &_epsilon_ch
 const std::set<eventgroup_t> event::get_eventgroups() const {
     std::set<eventgroup_t> its_eventgroups;
     {
-        std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
         for (const auto e : eventgroups_) {
             its_eventgroups.insert(e.first);
         }
@@ -219,7 +219,7 @@ const std::set<eventgroup_t> event::get_eventgroups() const {
 std::set<eventgroup_t> event::get_eventgroups(client_t _client) const {
     std::set<eventgroup_t> its_eventgroups;
 
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
     for (auto e : eventgroups_) {
         if (e.second.find(_client) != e.second.end())
             its_eventgroups.insert(e.first);
@@ -228,20 +228,20 @@ std::set<eventgroup_t> event::get_eventgroups(client_t _client) const {
 }
 
 void event::add_eventgroup(eventgroup_t _eventgroup) {
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
     if (eventgroups_.find(_eventgroup) == eventgroups_.end())
         eventgroups_[_eventgroup] = std::set<client_t>();
 }
 
 void event::set_eventgroups(const std::set<eventgroup_t> &_eventgroups) {
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
     for (auto e : _eventgroups)
         eventgroups_[e] = std::set<client_t>();
 }
 
 void event::update_cbk(boost::system::error_code const &_error) {
     if (!_error) {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         cycle_timer_.expires_from_now(cycle_);
         notify(true);
         auto its_handler =
@@ -261,7 +261,7 @@ void event::notify(bool _flush) {
 }
 
 void event::notify_one(const std::shared_ptr<endpoint_definition> &_target, bool _flush) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     notify_one_unlocked(_target, _flush);
 }
 
@@ -275,7 +275,7 @@ void event::notify_one_unlocked(const std::shared_ptr<endpoint_definition> &_tar
 }
 
 void event::notify_one(client_t _client, bool _flush) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     notify_one_unlocked(_client, _flush);
 }
 
@@ -310,7 +310,7 @@ void event::reset_payload(const std::shared_ptr<payload> &_payload) {
 }
 
 void event::add_ref(client_t _client, bool _is_provided) {
-    std::lock_guard<std::mutex> its_lock(refs_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(refs_mutex_);
     auto its_client = refs_.find(_client);
     if (its_client == refs_.end()) {
         refs_[_client][_is_provided] = 1;
@@ -325,7 +325,7 @@ void event::add_ref(client_t _client, bool _is_provided) {
 }
 
 void event::remove_ref(client_t _client, bool _is_provided) {
-    std::lock_guard<std::mutex> its_lock(refs_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(refs_mutex_);
     auto its_client = refs_.find(_client);
     if (its_client != refs_.end()) {
         auto its_provided = its_client->second.find(_is_provided);
@@ -342,12 +342,12 @@ void event::remove_ref(client_t _client, bool _is_provided) {
 }
 
 bool event::has_ref() {
-    std::lock_guard<std::mutex> its_lock(refs_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(refs_mutex_);
     return refs_.size() != 0;
 }
 
 bool event::add_subscriber(eventgroup_t _eventgroup, client_t _client, bool _force) {
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
     bool ret = false;
     if (_force // remote events managed by rm_impl
             || is_provided_ // events provided by rm_proxies
@@ -364,14 +364,14 @@ bool event::add_subscriber(eventgroup_t _eventgroup, client_t _client, bool _for
 }
 
 void event::remove_subscriber(eventgroup_t _eventgroup, client_t _client) {
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
     auto find_eventgroup = eventgroups_.find(_eventgroup);
     if (find_eventgroup != eventgroups_.end())
         find_eventgroup->second.erase(_client);
 }
 
 bool event::has_subscriber(eventgroup_t _eventgroup, client_t _client) {
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
     auto find_eventgroup = eventgroups_.find(_eventgroup);
     if (find_eventgroup != eventgroups_.end()) {
         if (_client == ANY_CLIENT) {
@@ -386,20 +386,20 @@ bool event::has_subscriber(eventgroup_t _eventgroup, client_t _client) {
 
 std::set<client_t> event::get_subscribers() {
     std::set<client_t> its_subscribers;
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
     for (const auto &e : eventgroups_)
         its_subscribers.insert(e.second.begin(), e.second.end());
     return its_subscribers;
 }
 
 void event::clear_subscribers() {
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
     for (auto &e : eventgroups_)
         e.second.clear();
 }
 
 bool event::has_ref(client_t _client, bool _is_provided) {
-    std::lock_guard<std::mutex> its_lock(refs_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(refs_mutex_);
     auto its_client = refs_.find(_client);
     if (its_client != refs_.end()) {
         auto its_provided = its_client->second.find(_is_provided);
@@ -462,7 +462,7 @@ bool event::compare(const std::shared_ptr<payload> &_lhs,
 
 std::set<client_t> event::get_subscribers(eventgroup_t _eventgroup) {
     std::set<client_t> its_subscribers;
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
     auto found_eventgroup = eventgroups_.find(_eventgroup);
     if (found_eventgroup != eventgroups_.end()) {
         its_subscribers = found_eventgroup->second;
@@ -471,7 +471,7 @@ std::set<client_t> event::get_subscribers(eventgroup_t _eventgroup) {
 }
 
 bool event::is_subscribed(client_t _client) {
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(eventgroups_mutex_);
     for (const auto &egp : eventgroups_) {
         if (egp.second.find(_client) != egp.second.end()) {
             return true;

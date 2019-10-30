@@ -6,7 +6,7 @@
 #include <chrono>
 #include <iomanip>
 #include <sstream>
-#include <thread>
+#include <boost/thread.hpp>
 #include <limits>
 
 #include <boost/asio/buffer.hpp>
@@ -64,7 +64,7 @@ template<typename Protocol>
 void client_endpoint_impl<Protocol>::set_established(bool _established) {
     if (_established) {
         if (state_ != cei_state_e::CONNECTING) {
-            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+            boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
             if (socket_->is_open()) {
                 state_ = cei_state_e::ESTABLISHED;
             } else {
@@ -77,7 +77,7 @@ void client_endpoint_impl<Protocol>::set_established(bool _established) {
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::set_connected(bool _connected) {
     if (_connected) {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
         if (socket_->is_open()) {
             state_ = cei_state_e::CONNECTED;
         } else {
@@ -90,14 +90,14 @@ void client_endpoint_impl<Protocol>::set_connected(bool _connected) {
 
 template<typename Protocol>void client_endpoint_impl<Protocol>::stop() {
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         endpoint_impl<Protocol>::sending_blocked_ = true;
         // delete unsent messages
         queue_.clear();
         queue_size_ = 0;
     }
     {
-        std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
+        boost::lock_guard<boost::mutex> its_lock(connect_timer_mutex_);
         boost::system::error_code ec;
         connect_timer_.cancel(ec);
     }
@@ -122,7 +122,7 @@ bool client_endpoint_impl<Protocol>::send_to(
 template<typename Protocol>
 bool client_endpoint_impl<Protocol>::send(const uint8_t *_data,
         uint32_t _size, bool _flush) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     bool ret(true);
     const bool queue_size_zero_on_entry(queue_.empty());
     if (endpoint_impl<Protocol>::sending_blocked_ ||
@@ -159,7 +159,7 @@ bool client_endpoint_impl<Protocol>::send(const std::vector<byte_t>& _cmd_header
 template<typename Protocol>
 bool client_endpoint_impl<Protocol>::flush() {
     bool is_successful(true);
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    boost::lock_guard<boost::mutex> its_lock(mutex_);
     if (!packetizer_->empty()) {
         queue_.push_back(packetizer_);
         queue_size_ += packetizer_->size();
@@ -203,7 +203,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(
                 connect_timeout_ = (connect_timeout_ << 1);
         } else {
             {
-                std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
+                boost::lock_guard<boost::mutex> its_lock(connect_timer_mutex_);
                 connect_timer_.cancel();
             }
             connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT; // TODO: use config variable
@@ -211,7 +211,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(
             set_local_port();
             if (was_not_connected_) {
                 was_not_connected_ = false;
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                boost::lock_guard<boost::mutex> its_lock(mutex_);
                 if (queue_.size() > 0) {
                     send_queued();
                     VSOMEIP_WARNING << __func__ << ": resume sending to: "
@@ -240,7 +240,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
         message_buffer_ptr_t _sent_msg) {
     (void)_bytes;
     if (!_error) {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        boost::lock_guard<boost::mutex> its_lock(mutex_);
         if (queue_.size() > 0) {
             queue_size_ -= queue_.front()->size();
             queue_.pop_front();
@@ -250,7 +250,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
         state_ = cei_state_e::CLOSED;
         bool stopping(false);
         {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            boost::lock_guard<boost::mutex> its_lock(mutex_);
             stopping = endpoint_impl<Protocol>::sending_blocked_;
             if (stopping) {
                 queue_.clear();
@@ -299,7 +299,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
             VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
                     << " (" << std::dec << _error.value() << ") "
                     << get_remote_information();
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            boost::lock_guard<boost::mutex> its_lock(mutex_);
             queue_.clear();
             queue_size_ = 0;
         }
@@ -356,7 +356,7 @@ void client_endpoint_impl<Protocol>::flush_cbk(
 
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::shutdown_and_close_socket(bool _recreate_socket) {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(socket_mutex_);
     shutdown_and_close_socket_unlocked(_recreate_socket);
 }
 
@@ -398,7 +398,7 @@ std::uint16_t client_endpoint_impl<Protocol>::get_local_port() const {
 
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::start_connect_timer() {
-    std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
+    boost::lock_guard<boost::mutex> its_lock(connect_timer_mutex_);
     connect_timer_.expires_from_now(
             std::chrono::milliseconds(connect_timeout_));
     connect_timer_.async_wait(
