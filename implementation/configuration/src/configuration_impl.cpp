@@ -4146,7 +4146,7 @@ void configuration_impl::set_interface_name(const std::string &ip) {
             inet_ntop(AF_INET6, tmp_addr_ptr, address_buffer, INET6_ADDRSTRLEN);
             if (search_ip == std::string(address_buffer)){
                 VSOMEIP_INFO <<  "IP Address " << address_buffer << " is on interface " << ifa->ifa_name;
-                if (((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_scope_id == 0) {
+                if (((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_scope_id == 0)
                 {
                     VSOMEIP_INFO <<  "Scope is global";
                 }
