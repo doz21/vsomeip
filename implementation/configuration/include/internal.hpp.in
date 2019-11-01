@@ -27,14 +27,14 @@
 
 #define VSOMEIP_BASE_PATH                       "/tmp/"
 
-#ifdef WIN32
-#define VSOMEIP_CFG_LIBRARY                     "vsomeip-cfg.dll"
+#ifdef _WIN32
+#define VSOMEIP_CFG_LIBRARY                     "libvsomeip-cfg.dll"
 #else
 #define VSOMEIP_CFG_LIBRARY                     "libvsomeip-cfg.so.@VSOMEIP_MAJOR_VERSION@"
 #endif
 
-#ifdef WIN32
-#define VSOMEIP_SD_LIBRARY                      "vsomeip-sd.dll"
+#ifdef _WIN32
+#define VSOMEIP_SD_LIBRARY                      "libvsomeip-sd.dll"
 #else
 #define VSOMEIP_SD_LIBRARY                      "libvsomeip-sd.so.@VSOMEIP_MAJOR_VERSION@"
 #endif
