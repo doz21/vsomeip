@@ -121,6 +121,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
             "vSomeIP_SharedMemoryLock");   // named mutex
         if (configuration_data_mutex) {
 
+            bool createdSharedMemory = false;
             if (GetLastError() == ERROR_ALREADY_EXISTS) {
                 VSOMEIP_INFO << "utility::auto_configuration_init: use existing shared memory";
 
@@ -138,6 +139,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
 
                     if (its_descriptor && GetLastError() == ERROR_ALREADY_EXISTS) {
 
+                        createdSharedMemory = true;
                         void *its_segment = (LPTSTR)MapViewOfFile(its_descriptor,   // handle to map object
                             FILE_MAP_ALL_ACCESS, // read/write permission
                             0,
@@ -156,9 +158,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                             VSOMEIP_ERROR << "utility::auto_configuration_init: MapViewOfFile failed (" << GetLastError() << ")";
                         }
                     } else {
-                        if (its_descriptor) {
-                            VSOMEIP_ERROR << "utility::auto_configuration_init: CreateFileMapping failed. expected existing mapping";
-                        } else {
+                        if (!its_descriptor) {
                             VSOMEIP_ERROR << "utility::auto_configuration_init: CreateFileMapping failed (" << GetLastError() << ")";
                         }
                     }
@@ -177,38 +177,38 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                     0,                              // maximum object size (high-order DWORD)
                     its_shm_size,                   // maximum object size (low-order DWORD)
                     utility::get_shm_name(_config).c_str());// name of mapping object
-
-                if (its_descriptor) {
-                    void *its_segment = (LPTSTR)MapViewOfFile(its_descriptor,   // handle to map object
-                        FILE_MAP_ALL_ACCESS, // read/write permission
-                        0,
-                        0,
-                        its_shm_size);
-                    if (its_segment) {
-                        the_configuration_data__
-                            = reinterpret_cast<configuration_data_t *>(its_segment);
-
-                        the_configuration_data__->client_base_
-                            = static_cast<unsigned short>((_config->get_diagnosis_address() << 8) & _config->get_diagnosis_mask());
-                        the_configuration_data__->max_clients_ = its_max_clients;
-                        the_configuration_data__->max_used_client_ids_index_ = 1;
-                        the_configuration_data__->max_assigned_client_id_ = 0x00;
-                        the_configuration_data__->routing_manager_host_ = 0x0000;
-                        // the clientid array starts right after the routing_manager_host_ struct member
-                        used_client_ids__ = reinterpret_cast<unsigned short*>(
-                                reinterpret_cast<size_t>(&the_configuration_data__->routing_manager_host_) + sizeof(unsigned short));
-                        used_client_ids__[0] = the_configuration_data__->client_base_;
-                        the_configuration_data__->client_base_++;
-                        std::string its_name = _config->get_routing_host();
-                        if (its_name == "")
-                            the_configuration_data__->routing_manager_host_ = the_configuration_data__->client_base_;
-
-                        its_configuration_refs__++;
-                    } else {
-                        VSOMEIP_ERROR << "utility::auto_configuration_init: MapViewOfFile failed (" << GetLastError() << ")";
-                    }
-                } else {
+                if (!its_descriptor) {
                     VSOMEIP_ERROR << "utility::auto_configuration_init: CreateFileMapping failed (" << GetLastError() << ")";
+                }
+            }
+            if (its_descriptor && ! createdSharedMemory) {
+                void *its_segment = (LPTSTR)MapViewOfFile(its_descriptor,   // handle to map object
+                    FILE_MAP_ALL_ACCESS, // read/write permission
+                    0,
+                    0,
+                    its_shm_size);
+                if (its_segment) {
+                    the_configuration_data__
+                         = reinterpret_cast<configuration_data_t *>(its_segment);
+
+                    the_configuration_data__->client_base_
+                        = static_cast<unsigned short>((_config->get_diagnosis_address() << 8) & _config->get_diagnosis_mask());
+                    the_configuration_data__->max_clients_ = its_max_clients;
+                    the_configuration_data__->max_used_client_ids_index_ = 1;
+                    the_configuration_data__->max_assigned_client_id_ = 0x00;
+                    the_configuration_data__->routing_manager_host_ = 0x0000;
+                    // the clientid array starts right after the routing_manager_host_ struct member
+                    used_client_ids__ = reinterpret_cast<unsigned short*>(
+                            reinterpret_cast<size_t>(&the_configuration_data__->routing_manager_host_) + sizeof(unsigned short));
+                    used_client_ids__[0] = the_configuration_data__->client_base_;
+                    the_configuration_data__->client_base_++;
+                    std::string its_name = _config->get_routing_host();
+                    if (its_name == "")
+                        the_configuration_data__->routing_manager_host_ = the_configuration_data__->client_base_;
+
+                    its_configuration_refs__++;
+                } else {
+                    VSOMEIP_ERROR << "utility::auto_configuration_init: MapViewOfFile failed (" << GetLastError() << ")";
                 }
             }
 
